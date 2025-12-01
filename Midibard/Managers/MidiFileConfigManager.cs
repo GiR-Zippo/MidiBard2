@@ -367,16 +367,56 @@ namespace MidiBard.Managers
 
         internal static bool IsCidOnTrack(long cid, DbTrack track)
         {
-            return track.AssignedCids.Contains(cid);
+            // main cid
+            if (track.AssignedCids.Contains(cid))
+                return true;
+
+            // linked
+            return MidiBard.config.EnsembleMemberConfigs
+                .Where(cfg => track.AssignedCids.Contains(cfg.Cid))
+                .Any(cfg => cfg.LinkedEnsembleMembers.Any(link => link.Cid == cid));
+
+            // return false;
         }
 
         internal static long GetFirstCidInParty(DbTrack track)
+        {
+            // main CIDs
+            var mainCid = track.AssignedCids
+                .FirstOrDefault(cid => api.PartyList.Any(p => p.ContentId == cid));
+
+            if (mainCid != 0)
+            {
+                // api.PluginLog.Warning($"GetFirstCidInParty main ({mainCid}): {track.Name}");
+                return mainCid;
+            }
+
+            // linked CIDs
+            var linkedCid = MidiBard.config.EnsembleMemberConfigs
+                .Where(cfg => track.AssignedCids.Contains(cfg.Cid))
+                .SelectMany(cfg => cfg.LinkedEnsembleMembers)
+                .Select(link => link.Cid)
+                .FirstOrDefault(cid => api.PartyList.Any(p => p.ContentId == cid));
+
+            if (linkedCid != 0)
+            {
+                // api.PluginLog.Warning($"GetFirstCidInParty linked ({linkedCid}): {track.Name}");
+                return linkedCid;
+            }
+
+            return -1;
+        }
+
+        internal static long GetFirstCidInParty2(DbTrack track)
         {
             // main assigned json cids
             foreach (var assignedCid in track.AssignedCids)
             {
                 if (api.PartyList.Any(p => p.ContentId == assignedCid))
+                {
+                    // api.PluginLog.Warning($"GetFirstCidInParty main ({assignedCid}): {track.Name}");
                     return assignedCid;
+                }
             }
 
             // linked members
@@ -392,7 +432,10 @@ namespace MidiBard.Managers
                 foreach (var linked in config.LinkedEnsembleMembers)
                 {
                     if (api.PartyList.Any(p => p.ContentId == linked.Cid))
+                    {
+                        // api.PluginLog.Warning($"GetFirstCidInParty linked ({linked.Cid}): {track.Name}");
                         return linked.Cid;
+                    }
                 }
             }
 
