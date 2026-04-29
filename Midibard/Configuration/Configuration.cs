@@ -147,7 +147,7 @@ public class Configuration : IPluginConfiguration
         }
     }
 
-    public void LinkEnsembleMember(long sourceCid, long targetCid)
+    public void LinkEnsembleMember(ulong sourceCid, ulong targetCid)
     {
         var source = EnsembleMemberConfigs.FirstOrDefault(x => x.Cid == sourceCid);
         var target = EnsembleMemberConfigs.FirstOrDefault(x => x.Cid == targetCid);
@@ -165,7 +165,7 @@ public class Configuration : IPluginConfiguration
         EnsembleMemberConfigs.Remove(source);
     }
 
-    public void UnlinkEnsembleMember(long parentCid, long linkedCid)
+    public void UnlinkEnsembleMember(ulong parentCid, ulong linkedCid)
     {
         var parent = EnsembleMemberConfigs.FirstOrDefault(x => x.Cid == parentCid);
 

@@ -73,10 +73,10 @@ internal class IPCManager : IDisposable
                                 throw new InvalidOperationException($"Message size is too large! TinyIpc will crash when handling this, not gonna let it through. maxFileSize: {Dalamud.Utility.Util.FormatBytes(maxFileSize)}");
                             }
 
-                            if (MessageBus.PublishAsync(message).Wait(5000))
+                            if (MessageBus.PublishAsync(new BinaryData(message)).Wait(5000))
                             {
                                 PluginLog.Verbose($"Message published.");
-                                if (dequeue.includeSelf) MessageBus_MessageReceived(null, new TinyMessageReceivedEventArgs(message));
+                                if (dequeue.includeSelf) MessageBus_MessageReceived(null, new TinyMessageReceivedEventArgs(new BinaryData(message)));
                             }
                             else
                             {
@@ -115,7 +115,7 @@ internal class IPCManager : IDisposable
         {
             var sw = Stopwatch.StartNew();
             PluginLog.Verbose($"message received");
-            var bytes = e.Message.ToArray<byte>().Decompress();
+            var bytes = e.Message.ToArray().Decompress();// .ToArray<byte>().Decompress();
             PluginLog.Verbose($"message decompressed in {sw.Elapsed.TotalMilliseconds}ms");
             var message = bytes.ProtoDeserialize<IPCEnvelope>();
             PluginLog.Verbose($"proto deserialized in {sw.Elapsed.TotalMilliseconds}ms");

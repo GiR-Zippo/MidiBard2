@@ -37,16 +37,16 @@ internal static class PartyChatCommand
             ["downloadsong"] = HandleDownloadSong,
         };
 
-    internal static void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
+    internal static void OnChatMessage(Dalamud.Game.Chat.IHandleableChatMessage message)
     {
-        if (isHandled || type != XivChatType.Party)
+        if (message.IsHandled || message.LogKind != XivChatType.Party)
             return;
 
-        var messageString = message.ToString();
+        var messageString = message.Message.TextValue.ToString();
         if (!CommandHandlers.Keys.Any(cmd => messageString.StartsWith(cmd, StringComparison.OrdinalIgnoreCase)))
             return;
 
-        string[] parts = message.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        string[] parts = message.Message.TextValue.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 1)
             return;
 

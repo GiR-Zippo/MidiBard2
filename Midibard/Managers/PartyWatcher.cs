@@ -31,11 +31,11 @@ public class PartyWatcher : IDisposable
         api.Framework.Update += Framework_Update;
     }
 
-    public long[] PartyMemberCIDs { get; private set; } = Array.Empty<long>();
+    public ulong[] PartyMemberCIDs { get; private set; } = Array.Empty<ulong>();
 
-    public static long[] GetMemberCIDs()
+    public static ulong[] GetMemberCIDs()
     {
-        System.Collections.Generic.List<long> cids = new();
+        System.Collections.Generic.List<ulong> cids = new();
         foreach (var p in api.PartyList)
         {
             try
@@ -83,8 +83,8 @@ public class PartyWatcher : IDisposable
         PartyMemberCIDs = newMemberCIDs;
     }
 
-    public static event EventHandler<long> PartyMemberJoin;
-    public static event EventHandler<long> PartyMemberLeave;
+    public static event EventHandler<ulong> PartyMemberJoin;
+    public static event EventHandler<ulong> PartyMemberLeave;
 
     public void Dispose()
     {
