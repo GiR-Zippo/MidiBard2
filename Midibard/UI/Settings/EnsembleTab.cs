@@ -568,7 +568,7 @@ public partial class PluginUI
 
     public static bool ContainsCidDeep(
     List<EnsembleMemberConfig> list,
-    long cid)
+    ulong cid)
     {
         foreach (var config in list)
         {

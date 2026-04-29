@@ -44,7 +44,7 @@ internal sealed class BardPlayback : Playback
     internal TrackChunk[] TrackChunks { get; init; }
     internal TrackInfo[] TrackInfos { get; init; }
     internal string DisplayName { get; init; }
-    private static long[] Cids = new long[100];
+    private static ulong[] Cids = new ulong[100];
     public static MidiFileConfig ReloadMidiFileConfig(MidiFileConfig midiFileConfig) => MidiFileConfigManager.LoadDefaultPerformer(midiFileConfig, ref Cids);
 
     public static BardPlayback GetBardPlayback(MidiFile file, string filePath)
@@ -172,9 +172,9 @@ internal sealed class BardPlayback : Playback
     private static MidiFileConfig LoadMidiConfigFromTrackStatus(MidiFileConfig midiConfigFromTrack)
     {
         MidiFileConfigManager.UsingDefaultPerformer = false;
-        Cids = new long[100];
+        Cids = new ulong[100];
 
-        var bardCid = (long)api.Player.ContentId;
+        var bardCid = api.Player.ContentId;
         for (int i = 0; i < midiConfigFromTrack.Tracks.Count; i++)
         {
             if (MidiBard.config.TrackStatus[i].Enabled)
@@ -341,7 +341,7 @@ internal sealed class BardPlayback : Playback
     {
         // find instrument from config file
         uint? configInstrumentId = MidiFileConfig?.Tracks?
-            .FirstOrDefault(t => t.Enabled && MidiFileConfig.IsCidOnTrack((long)api.Player.ContentId, t))
+            .FirstOrDefault(t => t.Enabled && MidiFileConfig.IsCidOnTrack(api.Player.ContentId, t))
             ?.Instrument;
 
         // find instrument from first enabled track
@@ -399,7 +399,7 @@ internal sealed class BardPlayback : Playback
         {
             try
             {
-                var isBardAssignedToTrack = MidiFileConfig.GetFirstCidInParty(tracks[trackIndex]) == (long)api.Player.ContentId;
+                var isBardAssignedToTrack = MidiFileConfig.GetFirstCidInParty(tracks[trackIndex]) == api.Player.ContentId;
                 MidiBard.config.TrackStatus[trackIndex].Enabled = tracks[trackIndex].Enabled && isBardAssignedToTrack;
                 MidiBard.config.TrackStatus[trackIndex].Transpose = tracks[trackIndex].Transpose;
                 MidiBard.config.TrackStatus[trackIndex].Tone = InstrumentHelper.GetGuitarTone(tracks[trackIndex].Instrument);

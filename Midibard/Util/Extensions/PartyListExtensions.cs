@@ -25,15 +25,15 @@ namespace MidiBard.Managers.Ipc;
 
 public static class PartyListExtensions
 {
-    public static IPartyMember? GetMeAsPartyMember(this IPartyList partyList) => partyList.IsInParty() ? partyList.FirstOrDefault(i => i.ContentId == (long)api.Player.ContentId) : null;
+    public static IPartyMember? GetMeAsPartyMember(this IPartyList partyList) => partyList.IsInParty() ? partyList.FirstOrDefault(i => i.ContentId == api.Player.ContentId) : null;
     public static IPartyMember? GetPartyLeader(this IPartyList partyList) => partyList.IsInParty() ? partyList[(int)partyList.PartyLeaderIndex] : null;
     public static bool IsInParty(this IPartyList partyList) => partyList?.Length > 1;
     public static bool IsPartyLeader(this IPartyMember member) => api.PartyList.IsInParty() && member != null && member.ContentId == api.PartyList.GetPartyLeader()?.ContentId;
-    public static bool IsPartyLeader(this IPartyList partyList) => partyList.IsInParty() && (long)api.Player.ContentId == partyList.GetPartyLeader()?.ContentId;
-    public static IPartyMember? GetPartyMemberFromCid(this IPartyList partyList, long cid) => partyList.FirstOrDefault(i => i.ContentId == cid);
+    public static bool IsPartyLeader(this IPartyList partyList) => partyList.IsInParty() && api.Player.ContentId == partyList.GetPartyLeader()?.ContentId;
+    public static IPartyMember? GetPartyMemberFromCid(this IPartyList partyList, ulong cid) => partyList.FirstOrDefault(i => i.ContentId == cid);
     public static string NameAndWorld(this IPartyMember member) => $"{member?.Name}·{member?.World.ValueNullable?.Name.ToDalamudString().TextValue}";
 
-    public static (long Cid, string Name, string World) GetPartyMemberData(this IPartyMember member)
+    public static (ulong Cid, string Name, string World) GetPartyMemberData(this IPartyMember member)
     {
         var name = member?.Name.ToString() ?? "";
         var world = member?.World.ValueNullable?.Name.ToDalamudString().TextValue ?? "";

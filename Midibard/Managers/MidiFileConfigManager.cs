@@ -163,12 +163,12 @@ namespace MidiBard.Managers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.AggressiveInlining)]
-        public static MidiFileConfig LoadDefaultPerformer(MidiFileConfig midiFileConfig, ref long[] Cids)
+        public static MidiFileConfig LoadDefaultPerformer(MidiFileConfig midiFileConfig, ref ulong[] Cids)
         {
             PluginLog.Debug("Loading Default Performer from MidiFileConfig...");
             UsingDefaultPerformer = true;
             var trackMapping = defaultPerformer?.TrackMappingDict ?? new();
-            Cids = new long[100];
+            Cids = new ulong[100];
 
             var partyMembers = api.PartyList.ToList();
 
@@ -284,8 +284,8 @@ namespace MidiBard.Managers
             }
 
             var midiFileConfig = MidiBard.CurrentPlayback?.MidiFileConfig;
-            Dictionary<long, List<int>> trackDict = new Dictionary<long, List<int>>();
-            List<long> existingCidInConfig = new List<long>();
+            Dictionary<ulong, List<int>> trackDict = new Dictionary<ulong, List<int>>();
+            List<ulong> existingCidInConfig = new List<ulong>();
             foreach (var cur in midiFileConfig.Tracks)
             {
                 foreach (var curCid in cur.AssignedCids)
@@ -318,7 +318,7 @@ namespace MidiBard.Managers
 
             // scan for those in the party but not in config anymore, remove them from Default Performer
             var partyList = api.PartyList.ToArray();
-            List<long> toRemove = new List<long>();
+            List<ulong> toRemove = new List<ulong>();
             foreach (var cur in partyList)
             {
                 if (!existingCidInConfig.Contains(cur.ContentId))
@@ -365,7 +365,7 @@ namespace MidiBard.Managers
         public bool AdaptNotes = true;
         public float Speed = 1;
 
-        internal static bool IsCidOnTrack(long cid, DbTrack track)
+        internal static bool IsCidOnTrack(ulong cid, DbTrack track)
         {
             // main cid
             if (track.AssignedCids.Contains(cid))
@@ -379,7 +379,7 @@ namespace MidiBard.Managers
             // return false;
         }
 
-        internal static long GetFirstCidInParty(DbTrack track)
+        internal static ulong GetFirstCidInParty(DbTrack track)
         {
             // main CIDs
             var mainCid = track.AssignedCids
@@ -404,43 +404,7 @@ namespace MidiBard.Managers
                 return linkedCid;
             }
 
-            return -1;
-        }
-
-        internal static long GetFirstCidInParty2(DbTrack track)
-        {
-            // main assigned json cids
-            foreach (var assignedCid in track.AssignedCids)
-            {
-                if (api.PartyList.Any(p => p.ContentId == assignedCid))
-                {
-                    // api.PluginLog.Warning($"GetFirstCidInParty main ({assignedCid}): {track.Name}");
-                    return assignedCid;
-                }
-            }
-
-            // linked members
-            foreach (var assignedCid in track.AssignedCids)
-            {
-                var config = MidiBard.config.EnsembleMemberConfigs
-                    .FirstOrDefault(x => x.Cid == assignedCid);
-
-                if (config == null)
-                    continue;
-
-                // check linked in party
-                foreach (var linked in config.LinkedEnsembleMembers)
-                {
-                    if (api.PartyList.Any(p => p.ContentId == linked.Cid))
-                    {
-                        // api.PluginLog.Warning($"GetFirstCidInParty linked ({linked.Cid}): {track.Name}");
-                        return linked.Cid;
-                    }
-                }
-            }
-
-            // nothing match
-            return -1;
+            return 0;
         }
     }
 
@@ -451,7 +415,7 @@ namespace MidiBard.Managers
         public string Name;
         public int Transpose;
         public uint Instrument;
-        public List<long> AssignedCids = new List<long>();
+        public List<ulong> AssignedCids = new List<ulong>();
     }
 
     // internal class DbChannel
@@ -463,6 +427,6 @@ namespace MidiBard.Managers
 
     internal class DefaultPerformer
     {
-        public Dictionary<long, List<int>> TrackMappingDict = new Dictionary<long, List<int>>(); // AssignedCids - List of Track Indexes
+        public Dictionary<ulong, List<int>> TrackMappingDict = new Dictionary<ulong, List<int>>(); // AssignedCids - List of Track Indexes
     }
 }

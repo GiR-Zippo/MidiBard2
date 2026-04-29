@@ -135,7 +135,7 @@ public partial class PluginUI
                             ImGui.SetNextItemWidth(-1);
 
                             var firstMidiFileCid = MidiFileConfig.GetFirstCidInParty(dbTrack);
-                            var selectedIdx = firstMidiFileCid == -1 ? 0 : orderedPartyList.FindIndex(i => i.Cid != 0 && i.Cid == firstMidiFileCid);
+                            var selectedIdx = firstMidiFileCid == 0 ? 0 : orderedPartyList.FindIndex(i => i.Cid != 0 && i.Cid == firstMidiFileCid);
 
                             if (ImGui.Combo("##partymemberSelect", ref selectedIdx, partyNamesList, partyNamesList.Length))
                             {

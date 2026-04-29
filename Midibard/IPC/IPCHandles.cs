@@ -225,7 +225,7 @@ static class IPCHandles
         uint? instrument = null;
         foreach (var cur in MidiBard.CurrentPlayback.MidiFileConfig.Tracks)
         {
-            if (cur.Enabled && MidiFileConfig.IsCidOnTrack((long)api.Player.ContentId, cur))
+            if (cur.Enabled && MidiFileConfig.IsCidOnTrack(api.Player.ContentId, cur))
             {
                 instrument = cur.Instrument;
                 break;
