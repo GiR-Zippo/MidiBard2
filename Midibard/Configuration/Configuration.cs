@@ -35,7 +35,7 @@ public class Configuration : IPluginConfiguration
     public int Version { get; set; }
 
     [JsonIgnore]
-    public TrackStatus[] TrackStatus { get; set; } = Enumerable.Repeat(new TrackStatus(), 100).ToArray();
+    public TrackStatus[] TrackStatus = Enumerable.Range(0, 100).Select(_ => new TrackStatus()).ToArray();
 
     //public ChannelStatus[] ChannelStatus = Enumerable.Repeat(new ChannelStatus(), 16).ToArray();
     public List<EnsembleMemberConfig> EnsembleMemberConfigs { get; set; } = new();
