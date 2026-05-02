@@ -14,8 +14,6 @@ using MidiBard.Control.MidiControl;
 using MidiBard.IPC;
 using MidiBard.Managers.Ipc;
 
-using MidiBard2.Resources;
-
 namespace MidiBard;
 
 public record BMLEntry
@@ -94,11 +92,26 @@ public partial class PluginUI
     }
 
     public string bmlpresearch = "";
+    private int bmlSelectedSource = 1;
     private int bmlPerfSize = 0;
     private static readonly List<string> bmlPerfSizeData = new List<string>() { "None", "Solo", "Duet", "Trio", "Quartet", "Quintet", "Sextet", "Septet", "Octet" };
 
     private void DrawBMLSearch()
     {
+        ImGui.Text("^Midi Source");
+        if (ImGui.BeginCombo("##midisource_combo", Misc.Sources[bmlSelectedSource]))
+        {
+            for (int n = 0; n < Misc.Sources.Count; n++)
+            {
+                bool is_selected = (bmlSelectedSource == n);
+                if (ImGui.Selectable(Misc.Sources[n], is_selected))
+                    bmlSelectedSource = n;
+                if (is_selected)
+                    ImGui.SetItemDefaultFocus();
+            }
+            ImGui.EndCombo();
+        }
+        ImGui.Spacing();
         if (ImGui.InputTextWithHint("##searchplaylist", "Type to search", ref bmlSearchString, 255, ImGuiInputTextFlags.AutoSelectAll))
         {
             if (bmlSearchString == "" || (bmlpresearch.Length > bmlSearchString.Length))
@@ -153,13 +166,13 @@ public partial class PluginUI
     {
         string serachstring = bmlSearchString.ToLower();
         if (serachstring.StartsWith("t:"))
-            _bmlsonglist = _bmlsonglist.Where(x => x.Title.ToLower().Contains(serachstring.Replace("t:", ""))).ToList();
+            _bmlsonglist = _bmlcachedsonglist.Where(x => x.Title.ToLower().Contains(serachstring.Replace("t:", ""))).ToList();
         else if (serachstring.StartsWith("a:"))
-            _bmlsonglist = _bmlsonglist.Where(x => x.Artist.ToLower().Contains(serachstring.Replace("a:", ""))).ToList();
+            _bmlsonglist = _bmlcachedsonglist.Where(x => x.Artist.ToLower().Contains(serachstring.Replace("a:", ""))).ToList();
         else if (serachstring.StartsWith("e:"))
-            _bmlsonglist = _bmlsonglist.Where(x => x.Editor.ToLower().Contains(serachstring.Replace("e:", ""))).ToList();
+            _bmlsonglist = _bmlcachedsonglist.Where(x => x.Editor.ToLower().Contains(serachstring.Replace("e:", ""))).ToList();
         else
-            _bmlsonglist = _bmlsonglist.Where(x => x.Filename.ToLower().Contains(serachstring)).ToList();
+            _bmlsonglist = _bmlcachedsonglist.Where(x => x.Filename.ToLower().Contains(serachstring)).ToList();
     }
 
     private void DrawBMLTable()
@@ -216,15 +229,8 @@ public partial class PluginUI
                         {
                             if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
                             {
-                                PartyChatCommand.SendDownloadSong(BMLDownloadUrl + Uri.EscapeUriString(_bmlsonglist.ElementAt(i).Filename));
-
-                                XIVMIDI.Instance.AddToQueue(new GetRequest()
-                                {
-                                    Url = BMLDownloadUrl + Uri.EscapeUriString(_bmlsonglist.ElementAt(i).Filename),
-                                    Host = "xivmidi.com",
-                                    Accept = "audio/midi",
-                                    Requester = Requester.DOWNLOAD
-                                });
+                                PartyChatCommand.SendDownloadSong(BMLDownloadUrl + Uri.EscapeDataString(_bmlsonglist.ElementAt(i).Filename));
+                                SendDownloadRequest(_bmlsonglist.ElementAt(i).Filename);
                             }
                         }
 
@@ -242,20 +248,14 @@ public partial class PluginUI
                         if (ImGuiUtil.IconButton(FontAwesomeIcon.Download, $"##importBmlSong_{i}", "Add to playlist"))
                         {
                             this._downloadType = BMLDownload.ToPlaylist;
-                            XIVMIDI.Instance.AddToQueue(new GetRequest()
-                            {
-                                Url = BMLDownloadUrl + Uri.EscapeUriString(_bmlsonglist.ElementAt(i).Filename),
-                                Host = "xivmidi.com",
-                                Accept = "audio/midi",
-                                Requester = Requester.DOWNLOAD
-                            });
+                            SendDownloadRequest(_bmlsonglist.ElementAt(i).Filename);
                         }
                         ImGui.OpenPopupOnItemClick($"ContextMenuImportBmlSong", ImGuiPopupFlags.MouseButtonRight);
                         if (ImGui.BeginPopup("ContextMenuImportBmlSong"))
                         {
                             if (ImGui.MenuItem("Copy download URL"))
                             {
-                                var songUrl = BMLDownloadUrl + Uri.EscapeUriString(_bmlsonglist.ElementAt(i).Filename);
+                                var songUrl = BMLDownloadUrl + Uri.EscapeDataString(_bmlsonglist.ElementAt(i).Filename);
                                 ImGui.SetClipboardText(songUrl);
                             }
                             ImGui.EndPopup();
@@ -264,15 +264,8 @@ public partial class PluginUI
                         ImGui.SameLine();
                         if (ImGuiUtil.IconButton(FontAwesomeIcon.Play, $"##loadBmlSong_{i}", "Load to playback"))
                         {
-                            PartyChatCommand.SendDownloadSong(BMLDownloadUrl + Uri.EscapeUriString(_bmlsonglist.ElementAt(i).Filename));
-
-                            XIVMIDI.Instance.AddToQueue(new GetRequest()
-                            {
-                                Url = BMLDownloadUrl + Uri.EscapeUriString(_bmlsonglist.ElementAt(i).Filename),
-                                Host = "xivmidi.com",
-                                Accept = "audio/midi",
-                                Requester = Requester.DOWNLOAD
-                            });
+                            PartyChatCommand.SendDownloadSong(BMLDownloadUrl + Uri.EscapeDataString(_bmlsonglist.ElementAt(i).Filename));
+                            SendDownloadRequest(_bmlsonglist.ElementAt(i).Filename);
                         }
 
                         ImGui.PopID();
@@ -321,14 +314,46 @@ public partial class PluginUI
         // }
     }
 
+    static string Safe(string s) => s == null ? "" : s.Replace("\0", "").Trim();
+
     private void SendRequest()
     {
+        string url = "";
+        if (bmlSelectedSource == 0) //XIVMIDI
+            url = new XIVMIDIRequestBuilder() { bandSize = bmlPerfSize }.BuildRequest();
+        else //BMPAPI
+            url = new BMPAPIRequestBuilder() { bandSize = bmlPerfSize }.BuildRequest();
         XIVMIDI.Instance.AddToQueue(new GetRequest()
         {
-            Url = new RequestBuilder() { bandSize = bmlPerfSize }.BuildRequest(),
-            Host = "xivmidi.com",
+            Url = url,
+            Host = new Uri(url).Host,
+            RequestSource = bmlSelectedSource,
             Requester = Requester.JSON
         });
+    }
+
+    private void SendDownloadRequest(string url)
+    {
+        if (bmlSelectedSource == 0)
+        {
+            XIVMIDI.Instance.AddToQueue(new GetRequest()
+            {
+                Url = "https://xivmidi.com" + url,
+                Host = "xivmidi.com",
+                Accept = "audio/midi",
+                Requester = Requester.DOWNLOAD
+            });
+        }
+        else
+        {
+            XIVMIDI.Instance.AddToQueue(new GetRequest()
+            {
+                Url = url,
+                Host = new Uri(url).Host,
+                Accept = "audio/midi",
+                Requester = Requester.DOWNLOAD
+            });
+        }
     }
 
     public void Instance_RequestFinished(object sender, object e)
@@ -341,17 +366,17 @@ public partial class PluginUI
             _bmlsonglist.Add(new BMLEntry() { Artist = "Service not available." });
         }
 
-        if (e is ResponseContainer.ApiResponse)
+        if (e is XIVMIDIResponseContainer.ApiResponse)
         {
-            var data = e as ResponseContainer.ApiResponse;
-            _bmlsonglist = new List<BMLEntry>();
+            var data = e as XIVMIDIResponseContainer.ApiResponse;
+            _bmlcachedsonglist = new List<BMLEntry>();
             foreach (var file in data.data.files)
             {
                 try
                 {
                     if (file.websiteFilePath == null)
                         continue;
-                    _bmlsonglist.Add(new BMLEntry()
+                    _bmlcachedsonglist.Add(new BMLEntry()
                     {
                         Artist = file.artist,
                         Title = file.title,
@@ -362,14 +387,37 @@ public partial class PluginUI
                 }
                 catch { }
             }
-            _bmlcachedsonglist = new List<BMLEntry>(_bmlsonglist);
+            _bmlsonglist = new List<BMLEntry>(_bmlcachedsonglist);
         }
-        else if (e is ResponseContainer.MidiFile)
+        else if (e is BMPResponseContainer.Root)
+        {
+            var data = e as BMPResponseContainer.Root;
+            _bmlcachedsonglist = new List<BMLEntry>();
+            foreach (var file in data.docs)
+            {
+                try
+                {
+                    if (file.url == null)
+                        continue;
+                    _bmlcachedsonglist.Add(new BMLEntry()
+                    {
+                        Artist = Safe(file.artist),
+                        Title = Safe(file.title),
+                        Editor = Safe(file.arranger),
+                        Filename = file.url,
+                        PerformerSize = Safe(file.ensembleSize)
+                    });
+                }
+                catch { }
+            }
+            _bmlsonglist = new List<BMLEntry>(_bmlcachedsonglist);
+        }
+        else if (e is XIVMIDIResponseContainer.MidiFile)
         {
             if (_downloadType == BMLDownload.ToPlaylist)
             {
                 _downloadType = BMLDownload.Playback;
-                var data = e as ResponseContainer.MidiFile;
+                var data = e as XIVMIDIResponseContainer.MidiFile;
 
                 if (PlaylistManager.FilePathList.Count() > 0)
                 {
@@ -391,7 +439,7 @@ public partial class PluginUI
             }
             else
             {
-                var data = e as ResponseContainer.MidiFile;
+                var data = e as XIVMIDIResponseContainer.MidiFile;
                 if (api.PartyList.IsPartyLeader())
                     IPCHandles.SendDownloadedSong(data.Filename, data.data);
                 _ = FilePlayback.LoadPlayback(data.Filename, new MemoryStream(data.data));
