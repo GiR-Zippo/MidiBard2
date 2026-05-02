@@ -6,7 +6,6 @@ using BardMusicPlayer.XIVMIDI;
 using BardMusicPlayer.XIVMIDI.IO;
 
 using Dalamud.Game.Text;
-using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Utility;
 
 using MidiBard.Control.CharacterControl;
