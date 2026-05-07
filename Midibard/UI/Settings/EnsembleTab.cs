@@ -251,29 +251,37 @@ public partial class PluginUI
 
             ImGui.Text(Language.settin_label_default_performer_tracks);
 
-            var partyMembers = api.PartyList
-                .Select(partyMember => partyMember.GetPartyMemberData())
-                .Where(partyMember => MidiFileConfigManager.defaultPerformer.TrackMappingDict.ContainsKey(partyMember.Cid))
-                .ToList();
+            try
+            {
+                var partyMembers = api.PartyList
+                    .Select(partyMember => partyMember.GetPartyMemberData())
+                    .Where(partyMember => MidiFileConfigManager.defaultPerformer.TrackMappingDict.ContainsKey(partyMember.Cid))
+                    .ToList();
 
-            if (partyMembers.Count == 0)
+                if (partyMembers.Count == 0)
+                {
+                    ImGui.Indent();
+                    ImGui.TextUnformatted(Language.setting_label_empty);
+                    ImGui.Unindent();
+                }
+
+                foreach (var partyMember in partyMembers)
+                {
+                    var playerInfo = $"{partyMember.Name}@{partyMember.World}";
+                    var playerTrackList = MidiFileConfigManager.defaultPerformer.TrackMappingDict.GetValueOrDefault(partyMember.Cid).ToList();
+                    var playerTracks = string.Join(", ", playerTrackList.Select(n => n + 1));
+                    ImGui.TextUnformatted($"{playerInfo}");
+                    ImGui.Indent();
+                    ImGui.TextUnformatted($"Tracks: {playerTracks}");
+                    ImGui.Unindent();
+                }
+            }
+            catch (Exception ex)
             {
                 ImGui.Indent();
                 ImGui.TextUnformatted(Language.setting_label_empty);
                 ImGui.Unindent();
             }
-
-            foreach (var partyMember in partyMembers)
-            {
-                var playerInfo = $"{partyMember.Name}@{partyMember.World}";
-                var playerTrackList = MidiFileConfigManager.defaultPerformer.TrackMappingDict.GetValueOrDefault(partyMember.Cid).ToList();
-                var playerTracks = string.Join(", ", playerTrackList.Select(n => n + 1));
-                ImGui.TextUnformatted($"{playerInfo}");
-                ImGui.Indent();
-                ImGui.TextUnformatted($"Tracks: {playerTracks}");
-                ImGui.Unindent();
-            }
-
             ImGui.Spacing();
             ImGui.Unindent();
         }
