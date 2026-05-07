@@ -19,9 +19,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text.Json.Nodes;
 
 using Dalamud.Interface.ImGuiNotification;
+
+using MidiBard2.Util;
 
 using Newtonsoft.Json;
 
@@ -81,27 +82,9 @@ namespace MidiBard.Managers
                 {
                     StreamReader sr = new StreamReader(fs);
                     fileContent = sr.ReadToEnd();
-                    bool has_invalidCIDs = false;
-                    if (CheckInvalidJsonCID(fileContent))
-                    {
-                        var data = JsonNode.Parse(fileContent);
-                        if (data is not null)
-                        {
-                            foreach (var track in data["Tracks"]?.AsArray() ?? [])
-                                if (track?["AssignedCids"]?.AsArray() is { } cids)
-                                    for (int i = 0; i < cids.Count; i++)
-                                        if (cids[i]?.GetValue<long>() == -1)
-                                        {
-                                            cids[i] = 0;
-                                            has_invalidCIDs = true;
-                                        }
-                            fileContent = fileContent = data.ToJsonString();
-                        }
-                    }
+                    // remove unwanted -1 from cid
+                    fileContent = Sanitizer.SanitizeMidiFileConfig(fileContent, songPath);
                     config = JsonConvert.DeserializeObject<MidiFileConfig>(fileContent, JsonSerializerSettings);
-                    if (has_invalidCIDs)
-                        Save(config, songPath);
-
                 }
             }
             catch (Exception e)
@@ -109,12 +92,6 @@ namespace MidiBard.Managers
                 PluginLog.Error(e.ToString());
             }
             return config;
-        }
-
-        public static bool CheckInvalidJsonCID(string fileContent)
-        {
-            var data = JsonNode.Parse(fileContent);
-            return data["Tracks"]!.AsArray().Any(track => track?["AssignedCids"]?.AsArray().Any(cid => cid?.GetValue<long>() == -1) ?? false);
         }
 
         public static MidiFileConfig GetMidiConfigFromTrack(IEnumerable<TrackInfo> trackInfos)
