@@ -1,4 +1,4 @@
-﻿using BardMusicPlayer.XIVMIDI.IO;
+using BardMusicPlayer.XIVMIDI.IO;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
@@ -134,6 +134,8 @@ public sealed partial class XIVMIDI
             co.Expires = DateTime.Now.Subtract(TimeSpan.FromDays(1));
         }
 
+        //reset them and refresh...
+        httpClient.DefaultRequestHeaders.Clear();
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(request.UserAgent);
         if (request.Accept != "")
             httpClient.DefaultRequestHeaders.Accept.ParseAdd(request.Accept);

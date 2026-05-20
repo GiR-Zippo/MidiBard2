@@ -65,7 +65,7 @@ public class MidiBard : IDalamudPlugin
     internal static AgentMetronome AgentMetronome { get; set; }
     internal static AgentPerformance AgentPerformance { get; set; }
     internal static EnsembleManager EnsembleManager { get; set; }
-    internal static IPCManager IpcManager { get; set; }
+    internal static IIPCManager IpcManager { get; set; }
     internal static PluginIPC PluginIpc { get; set; }
     public static BardPlayDevice BardPlayDevice { get; private set; }
 
@@ -117,7 +117,7 @@ public class MidiBard : IDalamudPlugin
         ConfigureLanguage(GetCultureCodeString((CultureCode)config.uiLang));
 
         // WindowSystem = new WindowSystem(this.Name);
-        IpcManager = new IPCManager();
+        IpcManager = IPCManagerFactory.Create();
         PartyWatcher = new PartyWatcher();
         PluginIpc = new PluginIPC();
 

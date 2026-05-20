@@ -2,7 +2,7 @@
     <PropertyGroup>
         <TargetFramework>net10.0-windows7.0</TargetFramework>
         <LangVersion>latest</LangVersion>
-        <AssemblyVersion>3.2.4.3</AssemblyVersion>
+        <AssemblyVersion>3.2.4.4</AssemblyVersion>
         <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
         <Nullable>disable</Nullable>
@@ -37,6 +37,8 @@
         <PackageReference Include="Melanchall.DryWetMidi" Version="7.2.0" />
         <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.7" />
         <PackageReference Include="TinyIpc" Version="5.2.0" />
+        <PackageReference Include="TinyIpc.Shim" Version="0.0.8" />
+        <PackageReference Include="XivIpc" Version="0.0.8" />
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\BardMusicPlayer.XIVMIDI\BardMusicPlayer.XIVMIDI.csproj" />
