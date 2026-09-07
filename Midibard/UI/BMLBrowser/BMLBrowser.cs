@@ -40,6 +40,10 @@ public partial class PluginUI
 
     private string bmlSearchString = "";
     private bool requestRunning = false;
+    public string bmlpresearch = "";
+    private int bmlSelectedSource = 1;
+    private int bmlPerfSize = 0;
+
     public void ToggleBMLWindow()
     {
         if (showBMLWindow)
@@ -208,10 +212,6 @@ public partial class PluginUI
             DrawBMLTable();
         }
     }
-
-    public string bmlpresearch = "";
-    private int bmlSelectedSource = 1;
-    private int bmlPerfSize = 0;
 
     private void DrawBMLSearch()
     {
