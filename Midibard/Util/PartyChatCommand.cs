@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 
 using BardMusicPlayer.XIVMIDI;
-using BardMusicPlayer.XIVMIDI.IO;
 
 using Dalamud.Game.Text;
 using Dalamud.Utility;
@@ -306,25 +305,23 @@ internal static class PartyChatCommand
 
     // -------------------------
 
-    internal static void SendDownloadSong(string url)
+    internal static void SendDownloadSong(string source, string url)
     {
         if (!api.PartyList.IsPartyLeader() || !MidiBard.config.playOnMultipleDevices || api.PartyList.Length < 2)
             return;
-        Chat.SendMessage($"/p downloadsong {url}");
+        Chat.SendMessage($"/p downloadsong {source} {url}");
     }
 
     private static void HandleDownloadSong(string[] args)
     {
-        if (!args[0].IsNullOrEmpty())
+        if (!args[0].IsNullOrEmpty() && !args[1].IsNullOrEmpty())
         {
-            api.LogDebug("download");
-            XIVMIDI.Instance.AddToQueue(new GetRequest()
-            {
-                Url = args[0],
-                Host = "xivmidi.com",
-                Accept = "audio/midi",
-                Requester = Requester.DOWNLOAD
-            });
+            api.LogDebug("download " + args[1] + " " + args[0]);
+            if (args[0].StartsWith("BMP"))
+                api.LogDebug("BMP");
+            else
+                api.LogDebug("XIV");
+            XIVMidiApi.Instance.GetMidiFile(args[1], BMLDownload.Playback, args[0].StartsWith("BMP"));
         }
     }
 }

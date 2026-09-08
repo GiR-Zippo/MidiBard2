@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 
 using BardMusicPlayer.XIVMIDI;
+using BardMusicPlayer.XIVMIDI.Events;
 using BardMusicPlayer.XIVMIDI.IO;
 
 using Dalamud.Bindings.ImGui;
@@ -36,9 +37,13 @@ public partial class PluginUI
     private bool showBMLWindow = false;
     private List<BMLEntry> _bmlsonglist = new List<BMLEntry>();
     private List<BMLEntry> _bmlcachedsonglist = new List<BMLEntry>();
-    private BMLDownload _downloadType = BMLDownload.Playback;
-    private static string BMLDownloadUrl { get; } = "https://xivmidi.com";
+
     private string bmlSearchString = "";
+    private bool requestRunning = false;
+    private int bmlSelectedSource = 1;
+    private int bmlPerfSize = 0;
+    private int bmlMaxSongs { get; set; } = 0;
+    private bool bmlIsLoadingMore { get; set; } = false;
 
     public void ToggleBMLWindow()
     {
@@ -50,13 +55,140 @@ public partial class PluginUI
 
     public void OpenBMLWindow()
     {
+        XIVMidiApi.Instance.OnBMPSongList += Instance_OnBMPSongList;
+        XIVMidiApi.Instance.OnXIVSongList += Instance_OnXIVSongList;
+        XIVMidiApi.Instance.OnXIVRequestError += Instance_OnRequestError;
         showBMLWindow = true;
     }
 
     public void CloseBMLWindow()
     {
+        XIVMidiApi.Instance.OnBMPSongList -= Instance_OnBMPSongList;
+        XIVMidiApi.Instance.OnXIVSongList -= Instance_OnXIVSongList;
+        XIVMidiApi.Instance.OnXIVRequestError -= Instance_OnRequestError;
         showBMLWindow = false;
     }
+
+    private void SendRequest()
+    {
+        if (bmlSelectedSource == 0) //XIVMIDI
+            XIVMidiApi.Instance.GetSonglist(new XIVMIDIRequestBuilder() { bandSize = bmlPerfSize });
+        else //BMPAPI
+            XIVMidiApi.Instance.GetSonglist(new BMPAPIRequestBuilder() { bandSize = bmlPerfSize });
+        requestRunning = true;
+    }
+
+    private void DownloadSong(string filename, BMLDownload downloadType)
+    {
+        if (filename.Contains(" "))
+            filename = Uri.EscapeUriString(filename);
+        api.LogDebug(filename);
+        XIVMidiApi.Instance.GetMidiFile(filename, downloadType, bmlSelectedSource == 1);
+    }
+
+    #region callback handlers
+    /// <summary>
+    /// Triggered when a BMPSongList was requested 
+    /// </summary>
+    private void Instance_OnBMPSongList(object sender, XIVMidiBMPSongsEvent e)
+    {
+        if (!e.DynamicLoad)
+            _bmlcachedsonglist = new List<BMLEntry>();
+
+        bmlMaxSongs = e.Songs.totalPages;
+        foreach (var file in e.Songs.docs)
+        {
+            try
+            {
+                if (file.url == null)
+                    continue;
+                _bmlcachedsonglist.Add(new BMLEntry()
+                {
+                    Artist = Safe(file.artist),
+                    Title = Safe(file.title),
+                    Editor = Safe(file.arranger),
+                    Filename = file.url,
+                    PerformerSize = Safe(file.ensembleSize)
+                });
+            }
+            catch { }
+        }
+        _bmlsonglist = new List<BMLEntry>(_bmlcachedsonglist);
+        requestRunning = false;
+        bmlIsLoadingMore = false;
+    }
+
+    /// <summary>
+    /// Triggered when a XIVSongList was requested 
+    /// </summary>
+    private void Instance_OnXIVSongList(object sender, XIVMidiXIVSongsEvent e)
+    {
+        if (!e.DynamicLoad)
+            _bmlcachedsonglist = new List<BMLEntry>();
+
+        bmlMaxSongs = e.Songs.meta.total;
+        foreach (var file in e.Songs.data)
+        {
+            try
+            {
+                if (file.download_url == null)
+                    continue;
+                _bmlcachedsonglist.Add(new BMLEntry()
+                {
+                    Artist = file.artist,
+                    Title = file.title,
+                    Editor = file.credit,
+                    Filename = file.download_url,
+                    PerformerSize = Misc.PerformerSize[file.bandsize]
+                });
+            }
+            catch { }
+        }
+        _bmlsonglist = new List<BMLEntry>(_bmlcachedsonglist);
+        requestRunning = false;
+        bmlIsLoadingMore = false;
+    }
+
+    public void Instance_OnMidiFile(object sender, XIVMidiFileEvent e)
+    {
+        BMLDownload option = (BMLDownload)e.Arguments;
+        if (option == BMLDownload.ToPlaylist)
+        {
+            option = BMLDownload.Playback;
+            if (PlaylistManager.FilePathList.Count() > 0)
+            {
+                string path = Path.GetDirectoryName(PlaylistManager.FilePathList.First().FilePath);
+                File.WriteAllBytes(path + "/" + e.MidiData.Filename, e.MidiData.data);
+                _ = PlaylistManager.AddAsync(new List<string> { path + "/" + e.MidiData.Filename }.AsEnumerable());
+            }
+            else
+            {
+                fileDialogManager.OpenFolderDialog("Open folder", (result, folderPath) =>
+                {
+                    if (result && Directory.Exists(folderPath))
+                    {
+                        File.WriteAllBytes(folderPath + "/" + e.MidiData.Filename, e.MidiData.data);
+                        _ = PlaylistManager.AddAsync(new List<string> { folderPath + "/" + e.MidiData.Filename }.AsEnumerable());
+                    }
+                });
+            }
+        }
+        else
+        {
+            if (api.PartyList.IsPartyLeader())
+                IPCHandles.SendDownloadedSong(e.MidiData.Filename, e.MidiData.data);
+            _ = FilePlayback.LoadPlayback(e.MidiData.Filename, new MemoryStream(e.MidiData.data));
+        }
+    }
+
+    private void Instance_OnRequestError(object sender, XIVMidiApiErrorEvent e)
+    {
+        if (e.ErrorCode == 503)
+            _bmlsonglist.Add(new BMLEntry() { Artist = "Service not available." });
+        else
+            _bmlsonglist.Add(new BMLEntry() { Artist = "Service error.", Title = e.Message });
+    }
+    #endregion
 
     private void DrawBMLWindow()
     {
@@ -81,20 +213,13 @@ public partial class PluginUI
 
             ImGui.Spacing();
             ImGui.Spacing();
-            if (XIVMIDI.Instance.IsRequestRunning)
-            {
+            if (requestRunning)
                 ImGuiUtil.DrawColoredBanner(Style.Colors.Violet, "Loading...");
-            }
 
             ImGui.Spacing();
             DrawBMLTable();
         }
     }
-
-    public string bmlpresearch = "";
-    private int bmlSelectedSource = 1;
-    private int bmlPerfSize = 0;
-    private static readonly List<string> bmlPerfSizeData = new List<string>() { "None", "Solo", "Duet", "Trio", "Quartet", "Quintet", "Sextet", "Septet", "Octet" };
 
     private void DrawBMLSearch()
     {
@@ -112,28 +237,92 @@ public partial class PluginUI
             ImGui.EndCombo();
         }
         ImGui.Spacing();
-        if (ImGui.InputTextWithHint("##searchplaylist", "Type to search", ref bmlSearchString, 255, ImGuiInputTextFlags.AutoSelectAll))
+        #region Search Stuff
+        if (ImGui.InputTextWithHint("##searchplaylist", "Type to search", ref bmlSearchString, 255, ImGuiInputTextFlags.AutoSelectAll |
+                                                                                                    ImGuiInputTextFlags.EnterReturnsTrue))
         {
-            if (bmlSearchString == "" || (bmlpresearch.Length > bmlSearchString.Length))
+            if (bmlSelectedSource == 0) //XIVMIDI
             {
-                _bmlsonglist = new List<BMLEntry>(_bmlcachedsonglist);
-                searchBMLList();
+                XIVMidiApi.Instance.GetSonglist(new XIVMIDIRequestBuilder()
+                {
+                    Search = bmlSearchString,
+                    bandSize = bmlPerfSize
+                }, false);
             }
-            else
-                searchBMLList();
-
-            bmlpresearch = bmlSearchString;
+            else if (bmlSelectedSource == 1)
+            {
+                XIVMidiApi.Instance.GetSonglist(new BMPAPIRequestBuilder()
+                {
+                    Search = bmlSearchString,
+                    bandSize = bmlPerfSize
+                }, false);
+            }
         }
         ImGuiUtil.HelpMarker("Advance search:\n t: search by title\n a: search by artist\n e: serach by editor");
+        ImGui.SameLine();
+
+        if (ImGuiUtil.IconButton(FontAwesomeIcon.Filter, "##searchFilterBtn", "Advanced Search"))
+        {
+            ImGui.OpenPopup("AdvancedSearchPopup");
+        }
+        if (ImGui.BeginPopup("AdvancedSearchPopup"))
+        {
+            ImGui.TextDisabled("Advanced Search");
+            ImGui.Separator();
+
+            var search = Misc.DecodeSearch(bmlSearchString);
+            bmlSearchString = search["search"];
+            string _searchMain = search["search"];
+            string _searchArtist = search["artist"];
+            string _searchEditor = search["editor"];
+
+            ImGui.Text("Search:");
+            ImGui.InputText("##filterSearch", ref _searchMain, 128);
+
+            ImGui.Text("Artist:");
+            ImGui.InputText("##filterArtist", ref _searchArtist, 128);
+
+            ImGui.Text("Editor:");
+            ImGui.InputText("##filterEditor", ref _searchEditor, 128);
+
+            bmlSearchString = _searchMain;
+            bmlSearchString = bmlSearchString + ";a:" + _searchArtist;
+            bmlSearchString = bmlSearchString + ";e:" + _searchEditor;
+            ImGui.Spacing();
+
+            ImGui.Separator();
+            if (ImGui.Button("Search"))
+            {
+                if (bmlSelectedSource == 0) //XIVMIDI
+                {
+                    XIVMidiApi.Instance.GetSonglist(new XIVMIDIRequestBuilder()
+                    {
+                        Search = bmlSearchString,
+                        bandSize = bmlPerfSize
+                    }, false);
+                }
+                else if (bmlSelectedSource == 1)
+                {
+                    XIVMidiApi.Instance.GetSonglist(new BMPAPIRequestBuilder()
+                    {
+                        Search = bmlSearchString,
+                        bandSize = bmlPerfSize
+                    }, false);
+                }
+                ImGui.CloseCurrentPopup();
+            }
+            ImGui.EndPopup();
+        }
+        #endregion
 
         ImGui.Spacing();
         ImGui.Text("Perfomer size");
-        if (ImGui.BeginCombo("##combo", bmlPerfSizeData[bmlPerfSize]))
+        if (ImGui.BeginCombo("##combo", Misc.PerformerSize[bmlPerfSize]))
         {
-            for (int n = 0; n < bmlPerfSizeData.Count; n++)
+            for (int n = 0; n < Misc.PerformerSize.Count; n++)
             {
                 bool is_selected = (bmlPerfSize == n);
-                if (ImGui.Selectable(bmlPerfSizeData[n], is_selected))
+                if (ImGui.Selectable(Misc.PerformerSize[n], is_selected))
                     bmlPerfSize = n;
                 if (is_selected)
                     ImGui.SetItemDefaultFocus();
@@ -157,22 +346,9 @@ public partial class PluginUI
         ImGui.PushStyleColor(ImGuiCol.ButtonActive, Style.Components.ButtonDangerActive);
         if (ImGuiUtil.IconButton(FontAwesomeIcon.Times, "##cancelRequests", "Cancel"))
         {
-            XIVMIDI.Instance.CancelDownloads();
+            //XIVMIDI.Instance.CancelDownloads();
         }
         ImGui.PopStyleColor(3);
-    }
-
-    private void searchBMLList()
-    {
-        string serachstring = bmlSearchString.ToLower();
-        if (serachstring.StartsWith("t:"))
-            _bmlsonglist = _bmlcachedsonglist.Where(x => x.Title.ToLower().Contains(serachstring.Replace("t:", ""))).ToList();
-        else if (serachstring.StartsWith("a:"))
-            _bmlsonglist = _bmlcachedsonglist.Where(x => x.Artist.ToLower().Contains(serachstring.Replace("a:", ""))).ToList();
-        else if (serachstring.StartsWith("e:"))
-            _bmlsonglist = _bmlcachedsonglist.Where(x => x.Editor.ToLower().Contains(serachstring.Replace("e:", ""))).ToList();
-        else
-            _bmlsonglist = _bmlcachedsonglist.Where(x => x.Filename.ToLower().Contains(serachstring)).ToList();
     }
 
     private void DrawBMLTable()
@@ -229,8 +405,8 @@ public partial class PluginUI
                         {
                             if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
                             {
-                                PartyChatCommand.SendDownloadSong(BMLDownloadUrl + Uri.EscapeDataString(_bmlsonglist.ElementAt(i).Filename));
-                                SendDownloadRequest(_bmlsonglist.ElementAt(i).Filename);
+                                PartyChatCommand.SendDownloadSong(bmlSelectedSource == 0 ? "XIVMIDI" : "BMP", Uri.EscapeUriString(_bmlsonglist.ElementAt(i).Filename));
+                                DownloadSong(_bmlsonglist.ElementAt(i).Filename, BMLDownload.Playback);
                             }
                         }
 
@@ -246,17 +422,15 @@ public partial class PluginUI
 
                         ImGui.TableNextColumn();
                         if (ImGuiUtil.IconButton(FontAwesomeIcon.Download, $"##importBmlSong_{i}", "Add to playlist"))
-                        {
-                            this._downloadType = BMLDownload.ToPlaylist;
-                            SendDownloadRequest(_bmlsonglist.ElementAt(i).Filename);
-                        }
+                            DownloadSong(_bmlsonglist.ElementAt(i).Filename, BMLDownload.ToPlaylist);
+
                         ImGui.OpenPopupOnItemClick($"ContextMenuImportBmlSong", ImGuiPopupFlags.MouseButtonRight);
                         if (ImGui.BeginPopup("ContextMenuImportBmlSong"))
                         {
                             if (ImGui.MenuItem("Copy download URL"))
                             {
-                                var songUrl = BMLDownloadUrl + Uri.EscapeDataString(_bmlsonglist.ElementAt(i).Filename);
-                                ImGui.SetClipboardText(songUrl);
+                                //var songUrl = BMLDownloadUrl + Uri.EscapeDataString(_bmlsonglist.ElementAt(i).Filename);
+                                //ImGui.SetClipboardText(songUrl);
                             }
                             ImGui.EndPopup();
                         }
@@ -264,16 +438,44 @@ public partial class PluginUI
                         ImGui.SameLine();
                         if (ImGuiUtil.IconButton(FontAwesomeIcon.Play, $"##loadBmlSong_{i}", "Load to playback"))
                         {
-                            PartyChatCommand.SendDownloadSong(BMLDownloadUrl + Uri.EscapeDataString(_bmlsonglist.ElementAt(i).Filename));
-                            SendDownloadRequest(_bmlsonglist.ElementAt(i).Filename);
+                            PartyChatCommand.SendDownloadSong(bmlSelectedSource == 0 ? "XIVMIDI" : "BMP", Uri.EscapeUriString(_bmlsonglist.ElementAt(i).Filename));
+                            DownloadSong(_bmlsonglist.ElementAt(i).Filename, BMLDownload.Playback);
                         }
-
                         ImGui.PopID();
                     }
                 }
 
                 clipper.End();
                 ImGui.EndTable();
+            }
+
+            float scrollY = ImGui.GetScrollY();
+            float maxScrollY = ImGui.GetScrollMaxY();
+            if ((maxScrollY > 0 && (maxScrollY - scrollY) < 100f) && !bmlIsLoadingMore)
+            {
+                if ((bmlSelectedSource == 0) && (_bmlsonglist.Count >= bmlMaxSongs))
+                    return;
+                if ((bmlSelectedSource == 1) && (_bmlsonglist.Count / 100 >= bmlMaxSongs))
+                    return;
+
+
+                bmlIsLoadingMore = true;
+                if (bmlSelectedSource == 0) //XIVMIDI
+                {
+                    XIVMidiApi.Instance.GetSonglist(new XIVMIDIRequestBuilder()
+                    {
+                        Search = bmlSearchString,
+                        bandSize = bmlPerfSize
+                    }, true);
+                }
+                else if (bmlSelectedSource == 1)
+                {
+                    XIVMidiApi.Instance.GetSonglist(new BMPAPIRequestBuilder()
+                    {
+                        Search = bmlSearchString,
+                        bandSize = bmlPerfSize
+                    }, true);
+                }
             }
         }
         ImGui.EndChild();
@@ -315,135 +517,4 @@ public partial class PluginUI
     }
 
     static string Safe(string s) => s == null ? "" : s.Replace("\0", "").Trim();
-
-    private void SendRequest()
-    {
-        string url = "";
-        if (bmlSelectedSource == 0) //XIVMIDI
-            url = new XIVMIDIRequestBuilder() { bandSize = bmlPerfSize }.BuildRequest();
-        else //BMPAPI
-            url = new BMPAPIRequestBuilder() { bandSize = bmlPerfSize }.BuildRequest();
-        XIVMIDI.Instance.AddToQueue(new GetRequest()
-        {
-            Url = url,
-            Host = new Uri(url).Host,
-            RequestSource = bmlSelectedSource,
-            Requester = Requester.JSON
-        });
-    }
-
-    private void SendDownloadRequest(string url)
-    {
-        if (bmlSelectedSource == 0)
-        {
-            XIVMIDI.Instance.AddToQueue(new GetRequest()
-            {
-                Url = "https://xivmidi.com" + url,
-                Host = "xivmidi.com",
-                Accept = "audio/midi",
-                Requester = Requester.DOWNLOAD
-            });
-        }
-        else
-        {
-            XIVMIDI.Instance.AddToQueue(new GetRequest()
-            {
-                Url = url,
-                Host = new Uri(url).Host,
-                Accept = "audio/midi",
-                Requester = Requester.DOWNLOAD
-            });
-        }
-    }
-
-    public void Instance_RequestFinished(object sender, object e)
-    {
-        if (e == null)
-            return;
-
-        if (e is GetRequest)
-        {
-            _bmlsonglist.Add(new BMLEntry() { Artist = "Service not available." });
-        }
-
-        if (e is XIVMIDIResponseContainer.ApiResponse)
-        {
-            var data = e as XIVMIDIResponseContainer.ApiResponse;
-            _bmlcachedsonglist = new List<BMLEntry>();
-            foreach (var file in data.data.files)
-            {
-                try
-                {
-                    if (file.websiteFilePath == null)
-                        continue;
-                    _bmlcachedsonglist.Add(new BMLEntry()
-                    {
-                        Artist = file.artist,
-                        Title = file.title,
-                        Editor = file.editor,
-                        Filename = file.websiteFilePath,
-                        PerformerSize = file.bandSize
-                    });
-                }
-                catch { }
-            }
-            _bmlsonglist = new List<BMLEntry>(_bmlcachedsonglist);
-        }
-        else if (e is BMPResponseContainer.Root)
-        {
-            var data = e as BMPResponseContainer.Root;
-            _bmlcachedsonglist = new List<BMLEntry>();
-            foreach (var file in data.docs)
-            {
-                try
-                {
-                    if (file.url == null)
-                        continue;
-                    _bmlcachedsonglist.Add(new BMLEntry()
-                    {
-                        Artist = Safe(file.artist),
-                        Title = Safe(file.title),
-                        Editor = Safe(file.arranger),
-                        Filename = file.url,
-                        PerformerSize = Safe(file.ensembleSize)
-                    });
-                }
-                catch { }
-            }
-            _bmlsonglist = new List<BMLEntry>(_bmlcachedsonglist);
-        }
-        else if (e is XIVMIDIResponseContainer.MidiFile)
-        {
-            if (_downloadType == BMLDownload.ToPlaylist)
-            {
-                _downloadType = BMLDownload.Playback;
-                var data = e as XIVMIDIResponseContainer.MidiFile;
-
-                if (PlaylistManager.FilePathList.Count() > 0)
-                {
-                    string path = Path.GetDirectoryName(PlaylistManager.FilePathList.First().FilePath);
-                    File.WriteAllBytes(path + "/" + data.Filename, data.data);
-                    _ = PlaylistManager.AddAsync(new List<string> { path + "/" + data.Filename }.AsEnumerable());
-                }
-                else
-                {
-                    fileDialogManager.OpenFolderDialog("Open folder", (result, folderPath) =>
-                    {
-                        if (result && Directory.Exists(folderPath))
-                        {
-                            File.WriteAllBytes(folderPath + "/" + data.Filename, data.data);
-                            _ = PlaylistManager.AddAsync(new List<string> { folderPath + "/" + data.Filename }.AsEnumerable());
-                        }
-                    });
-                }
-            }
-            else
-            {
-                var data = e as XIVMIDIResponseContainer.MidiFile;
-                if (api.PartyList.IsPartyLeader())
-                    IPCHandles.SendDownloadedSong(data.Filename, data.data);
-                _ = FilePlayback.LoadPlayback(data.Filename, new MemoryStream(data.data));
-            }
-        }
-    }
 }
