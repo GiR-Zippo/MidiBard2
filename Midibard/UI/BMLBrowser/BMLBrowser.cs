@@ -258,7 +258,6 @@ public partial class PluginUI
                 }, false);
             }
         }
-        ImGuiUtil.HelpMarker("Advance search:\n t: search by title\n a: search by artist\n e: serach by editor");
         ImGui.SameLine();
 
         if (ImGuiUtil.IconButton(FontAwesomeIcon.Filter, "##searchFilterBtn", "Advanced Search"))
