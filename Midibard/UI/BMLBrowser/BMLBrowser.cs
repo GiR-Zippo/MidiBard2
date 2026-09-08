@@ -40,9 +40,10 @@ public partial class PluginUI
 
     private string bmlSearchString = "";
     private bool requestRunning = false;
-    public string bmlpresearch = "";
     private int bmlSelectedSource = 1;
     private int bmlPerfSize = 0;
+    private int bmlMaxSongs { get; set; } = 0;
+    private bool bmlIsLoadingMore { get; set; } = false;
 
     public void ToggleBMLWindow()
     {
@@ -91,7 +92,10 @@ public partial class PluginUI
     /// </summary>
     private void Instance_OnBMPSongList(object sender, XIVMidiBMPSongsEvent e)
     {
-        _bmlcachedsonglist = new List<BMLEntry>();
+        if (!e.DynamicLoad)
+            _bmlcachedsonglist = new List<BMLEntry>();
+
+        bmlMaxSongs = e.Songs.totalPages;
         foreach (var file in e.Songs.docs)
         {
             try
@@ -111,6 +115,7 @@ public partial class PluginUI
         }
         _bmlsonglist = new List<BMLEntry>(_bmlcachedsonglist);
         requestRunning = false;
+        bmlIsLoadingMore = false;
     }
 
     /// <summary>
@@ -118,7 +123,10 @@ public partial class PluginUI
     /// </summary>
     private void Instance_OnXIVSongList(object sender, XIVMidiXIVSongsEvent e)
     {
-        _bmlcachedsonglist = new List<BMLEntry>();
+        if (!e.DynamicLoad)
+            _bmlcachedsonglist = new List<BMLEntry>();
+
+        bmlMaxSongs = e.Songs.meta.total;
         foreach (var file in e.Songs.data)
         {
             try
@@ -138,6 +146,7 @@ public partial class PluginUI
         }
         _bmlsonglist = new List<BMLEntry>(_bmlcachedsonglist);
         requestRunning = false;
+        bmlIsLoadingMore = false;
     }
 
     public void Instance_OnMidiFile(object sender, XIVMidiFileEvent e)
@@ -179,7 +188,6 @@ public partial class PluginUI
         else
             _bmlsonglist.Add(new BMLEntry() { Artist = "Service error.", Title = e.Message });
     }
-
     #endregion
 
     private void DrawBMLWindow()
@@ -229,19 +237,83 @@ public partial class PluginUI
             ImGui.EndCombo();
         }
         ImGui.Spacing();
-        if (ImGui.InputTextWithHint("##searchplaylist", "Type to search", ref bmlSearchString, 255, ImGuiInputTextFlags.AutoSelectAll))
+        #region Search Stuff
+        if (ImGui.InputTextWithHint("##searchplaylist", "Type to search", ref bmlSearchString, 255, ImGuiInputTextFlags.AutoSelectAll |
+                                                                                                    ImGuiInputTextFlags.EnterReturnsTrue))
         {
-            if (bmlSearchString == "" || (bmlpresearch.Length > bmlSearchString.Length))
+            if (bmlSelectedSource == 0) //XIVMIDI
             {
-                _bmlsonglist = new List<BMLEntry>(_bmlcachedsonglist);
-                searchBMLList();
+                XIVMidiApi.Instance.GetSonglist(new XIVMIDIRequestBuilder()
+                {
+                    Search = bmlSearchString,
+                    bandSize = bmlPerfSize
+                }, false);
             }
-            else
-                searchBMLList();
-
-            bmlpresearch = bmlSearchString;
+            else if (bmlSelectedSource == 1)
+            {
+                XIVMidiApi.Instance.GetSonglist(new BMPAPIRequestBuilder()
+                {
+                    Search = bmlSearchString,
+                    bandSize = bmlPerfSize
+                }, false);
+            }
         }
         ImGuiUtil.HelpMarker("Advance search:\n t: search by title\n a: search by artist\n e: serach by editor");
+        ImGui.SameLine();
+
+        if (ImGuiUtil.IconButton(FontAwesomeIcon.Filter, "##searchFilterBtn", "Advanced Search"))
+        {
+            ImGui.OpenPopup("AdvancedSearchPopup");
+        }
+        if (ImGui.BeginPopup("AdvancedSearchPopup"))
+        {
+            ImGui.TextDisabled("Advanced Search");
+            ImGui.Separator();
+
+            var search = Misc.DecodeSearch(bmlSearchString);
+            bmlSearchString = search["search"];
+            string _searchMain = search["search"];
+            string _searchArtist = search["artist"];
+            string _searchEditor = search["editor"];
+
+            ImGui.Text("Search:");
+            ImGui.InputText("##filterSearch", ref _searchMain, 128);
+
+            ImGui.Text("Artist:");
+            ImGui.InputText("##filterArtist", ref _searchArtist, 128);
+
+            ImGui.Text("Editor:");
+            ImGui.InputText("##filterEditor", ref _searchEditor, 128);
+
+            bmlSearchString = _searchMain;
+            bmlSearchString = bmlSearchString + ";a:" + _searchArtist;
+            bmlSearchString = bmlSearchString + ";e:" + _searchEditor;
+            ImGui.Spacing();
+
+            ImGui.Separator();
+            if (ImGui.Button("Search"))
+            {
+                if (bmlSelectedSource == 0) //XIVMIDI
+                {
+                    XIVMidiApi.Instance.GetSonglist(new XIVMIDIRequestBuilder()
+                    {
+                        Search = bmlSearchString,
+                        bandSize = bmlPerfSize
+                    }, false);
+                }
+                else if (bmlSelectedSource == 1)
+                {
+                    XIVMidiApi.Instance.GetSonglist(new BMPAPIRequestBuilder()
+                    {
+                        Search = bmlSearchString,
+                        bandSize = bmlPerfSize
+                    }, false);
+                }
+                ImGui.CloseCurrentPopup();
+            }
+            ImGui.EndPopup();
+        }
+        #endregion
 
         ImGui.Spacing();
         ImGui.Text("Perfomer size");
@@ -277,19 +349,6 @@ public partial class PluginUI
             //XIVMIDI.Instance.CancelDownloads();
         }
         ImGui.PopStyleColor(3);
-    }
-
-    private void searchBMLList()
-    {
-        string serachstring = bmlSearchString.ToLower();
-        if (serachstring.StartsWith("t:"))
-            _bmlsonglist = _bmlcachedsonglist.Where(x => x.Title.ToLower().Contains(serachstring.Replace("t:", ""))).ToList();
-        else if (serachstring.StartsWith("a:"))
-            _bmlsonglist = _bmlcachedsonglist.Where(x => x.Artist.ToLower().Contains(serachstring.Replace("a:", ""))).ToList();
-        else if (serachstring.StartsWith("e:"))
-            _bmlsonglist = _bmlcachedsonglist.Where(x => x.Editor.ToLower().Contains(serachstring.Replace("e:", ""))).ToList();
-        else
-            _bmlsonglist = _bmlcachedsonglist.Where(x => x.Filename.ToLower().Contains(serachstring)).ToList();
     }
 
     private void DrawBMLTable()
@@ -382,13 +441,41 @@ public partial class PluginUI
                             PartyChatCommand.SendDownloadSong(bmlSelectedSource == 0 ? "XIVMIDI" : "BMP", Uri.EscapeUriString(_bmlsonglist.ElementAt(i).Filename));
                             DownloadSong(_bmlsonglist.ElementAt(i).Filename, BMLDownload.Playback);
                         }
-
                         ImGui.PopID();
                     }
                 }
 
                 clipper.End();
                 ImGui.EndTable();
+            }
+
+            float scrollY = ImGui.GetScrollY();
+            float maxScrollY = ImGui.GetScrollMaxY();
+            if ((maxScrollY > 0 && (maxScrollY - scrollY) < 100f) && !bmlIsLoadingMore)
+            {
+                if ((bmlSelectedSource == 0) && (_bmlsonglist.Count >= bmlMaxSongs))
+                    return;
+                if ((bmlSelectedSource == 1) && (_bmlsonglist.Count / 100 >= bmlMaxSongs))
+                    return;
+
+
+                bmlIsLoadingMore = true;
+                if (bmlSelectedSource == 0) //XIVMIDI
+                {
+                    XIVMidiApi.Instance.GetSonglist(new XIVMIDIRequestBuilder()
+                    {
+                        Search = bmlSearchString,
+                        bandSize = bmlPerfSize
+                    }, true);
+                }
+                else if (bmlSelectedSource == 1)
+                {
+                    XIVMidiApi.Instance.GetSonglist(new BMPAPIRequestBuilder()
+                    {
+                        Search = bmlSearchString,
+                        bandSize = bmlPerfSize
+                    }, true);
+                }
             }
         }
         ImGui.EndChild();
