@@ -43,10 +43,18 @@ public partial class PluginUI
             ImGui.SetNextWindowPos(ImGui.GetWindowPos() - new Vector2(2, 0), ImGuiCond.FirstUseEver, new Vector2(1, 0));
             ImGui.PushStyleColor(ImGuiCol.TitleBgActive, Style.Components.WindowBg);
             ImGui.PushStyleColor(ImGuiCol.TitleBg, Style.Components.WindowBg);
-            if (ImGui.Begin(
+            /*if (ImGui.Begin(
                     Language.window_title_standalone_playlist +
                     $" ({PlaylistManager.FilePathList.Count})" +
                     (PlaylistManager.CurrentContainer.TotalDuration > TimeSpan.Zero ? $" Duration: {Extensions.GetDurationString(PlaylistManager.CurrentContainer.TotalDuration)}" : "") +
+                    $"###MidibardPlaylist",
+                    ref MidiBard.config.UseStandalonePlaylistWindow, ImGuiWindowFlags.NoDocking))*/
+            if (ImGui.Begin(
+                    Language.window_title_standalone_playlist +
+                    $" ({PlaylistManager.FilePathList?.Count ?? 0})" +
+                    (PlaylistManager.CurrentContainer?.TotalDuration > TimeSpan.Zero
+                        ? $" Duration: {Extensions.GetDurationString(PlaylistManager.CurrentContainer.TotalDuration)}"
+                        : "") +
                     $"###MidibardPlaylist",
                     ref MidiBard.config.UseStandalonePlaylistWindow, ImGuiWindowFlags.NoDocking))
             {
