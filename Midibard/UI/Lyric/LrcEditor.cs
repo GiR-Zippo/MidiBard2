@@ -442,7 +442,7 @@ public class LrcEditor
 
                             if (ImGuiUtil.IconButton(FontAwesomeIcon.TrashAlt))
                             {
-                                LrcLines.Remove(entry);
+                                this.LrcLines.Remove(entry);
                                 unsaved = true;
                             }
 
