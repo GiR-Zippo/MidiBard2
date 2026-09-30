@@ -162,7 +162,7 @@ public partial class PluginUI
                                 else
                                 {
                                     // choose empty, remove all the characters in the same party
-                                    foreach (var member in api.GetPartyList())
+                                    foreach (var member in api.PartyList)
                                     {
                                         if (dbTrack.AssignedCids.Contains(member.ContentId))
                                         {
@@ -177,7 +177,7 @@ public partial class PluginUI
                             if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
                             {
                                 // choose empty, remove all the characters in the same party
-                                foreach (var member in api.GetPartyList())
+                                foreach (var member in api.PartyList)
                                 {
                                     if (dbTrack.AssignedCids.Contains(member.ContentId))
                                     {
