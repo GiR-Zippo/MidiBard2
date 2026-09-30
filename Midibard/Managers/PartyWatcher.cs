@@ -16,84 +16,94 @@
 // This code is written by akira0245 and was originally used in the MidiBard project. Any usage of this code must prominently credit the author, akira0245, and indicate that it was originally used in the MidiBard project.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 using Dalamud.Plugin.Services;
-
-using static Dalamud.api;
+using Dalamud.Utility;
 
 namespace MidiBard.Managers;
 
 public class PartyWatcher : IDisposable
 {
-    public PartyWatcher()
-    {
-        api.Framework.Update += Framework_Update;
-    }
-
-    public ulong[] PartyMemberCIDs { get; private set; } = Array.Empty<ulong>();
+    public record PartyMemberInfo(string Name, uint EntityId, ulong ContentId, uint WorldId, string World, uint ClassJobId, byte Level);
 
     /// <summary>
-    /// Get the party member CIDs, called by Framework_Update
+    /// Get the PartyList
     /// </summary>
-    /// <returns></returns>
-    public static ulong[] GetMemberCIDs()
+    public IReadOnlyList<PartyMemberInfo> PartyMembers => Volatile.Read(ref _partyMembers);
+
+    /// <summary>
+    /// Are we in a party
+    /// </summary>
+    public bool IsInParty => Volatile.Read(ref _isInParty);
+
+    /// <summary>
+    /// Indicates if we are the partylead
+    /// </summary>
+    public bool IsPartyLeader => Volatile.Read(ref _isPartyLeader);
+
+
+    private PartyMemberInfo[] _partyMembers = Array.Empty<PartyMemberInfo>();
+    private bool _isInParty;
+    private bool _isPartyLeader;
+
+    private static readonly Lazy<PartyWatcher> _instance = new(() => new PartyWatcher());
+    public static PartyWatcher Instance => _instance.Value;
+    private bool started { get; set; } = false;
+
+    private PartyWatcher() { }
+
+    /// <summary>
+    /// Start the singleton
+    /// </summary>
+    public void Start()
     {
-        System.Collections.Generic.List<ulong> cids = new();
-        foreach (var p in api.PartyList)
-        {
-            try
-            {
-                if (p.EntityId <= 0 || !p.GameObject.IsValid())
-                    continue;
-                if (p.World.Value.RowId > 0 && p.Territory.Value.RowId > 0)
-                {
-                    cids.Add(p.ContentId);
-                }
-            }
-            catch (NullReferenceException) { }
-        }
-        return cids.ToArray();
+        if (started)
+            return;
+        api.Framework.Update += Framework_Update;
+        started = true;
     }
 
-    private void Framework_Update(IFramework framework)
-    {
-        var newMemberCIDs = GetMemberCIDs();
-        if (!newMemberCIDs.ToHashSet().SetEquals(PartyMemberCIDs.ToHashSet()))
-        {
-            //PluginLog.Warning($"CHANGE {newList.Length - PartyMembers.Length}");
-            //PluginLog.Information("OLD:\n"+string.Join("\n", PartyMembers.Select(i=>$"{i.Name} {i.ContentId:X}")));
-            //PluginLog.Information("NEW:\n"+string.Join("\n", newList.Select(i=>$"{i.Name} {i.ContentId:X}")));
-
-            foreach (var cid in newMemberCIDs)
-            {
-                if (!PartyMemberCIDs.Any(i => i == cid))
-                {
-                    PluginLog.Debug($"JOIN {cid}");
-                    PartyMemberJoin?.Invoke(this, cid);
-                }
-            }
-
-            foreach (var partyMember in PartyMemberCIDs)
-            {
-                if (!newMemberCIDs.Any(i => i == partyMember))
-                {
-                    PluginLog.Debug($"LEAVE {partyMember}");
-                    PartyMemberLeave?.Invoke(this, partyMember);
-                }
-            }
-        }
-
-        PartyMemberCIDs = newMemberCIDs;
-    }
-
-    public static event EventHandler<ulong> PartyMemberJoin;
-    public static event EventHandler<ulong> PartyMemberLeave;
-
+    /// <summary>
+    /// Stop the singleton and cleanup
+    /// </summary>
     public void Dispose()
     {
+        if (!started) return;
         api.Framework.Update -= Framework_Update;
-        PartyMemberJoin = delegate { };
-        PartyMemberLeave = delegate { };
+        Volatile.Write(ref _partyMembers, Array.Empty<PartyMemberInfo>());
+    }
+
+    /// <summary>
+    /// Called by Frameowrk Update
+    /// </summary>
+    /// <param name="framework"></param>
+    private void Framework_Update(IFramework framework)
+    {
+        var oldMembers = _partyMembers;
+        var newMembers = api.PartyList
+            .Select(m => new PartyMemberInfo(
+                m.Name.TextValue,
+                m.EntityId,
+                m.ContentId,
+                m.World.RowId,
+                m.World.ValueNullable?.Name.ToDalamudString().TextValue ?? "",
+                m.ClassJob.RowId,
+                m.Level))
+            .ToArray();
+
+        var oldCIDs = oldMembers.Select(m => m.ContentId).ToHashSet();
+        var newCIDs = newMembers.Select(m => m.ContentId).ToHashSet();
+
+        var joined = newCIDs.Except(oldCIDs).ToArray();
+        var left = oldCIDs.Except(newCIDs).ToArray();
+        bool isInParty = (api.PartyList?.Length ?? 0) > 1;
+        var lead = isInParty ? api.PartyList[(int)api.PartyList.PartyLeaderIndex] : null;
+
+        Volatile.Write(ref _isInParty, isInParty);
+        Volatile.Write(ref _isPartyLeader, isInParty && api.Player.ContentId == lead?.ContentId);
+        Volatile.Write(ref _partyMembers, newMembers);
     }
 }

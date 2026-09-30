@@ -24,7 +24,7 @@ using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility;
 using Dalamud.Utility;
 
-using MidiBard.Managers.Ipc;
+using MidiBard.Managers;
 using MidiBard.Util;
 
 using MidiBard2.Resources;
@@ -145,8 +145,8 @@ public partial class PluginUI
                     DrawButtonPlayMode(disabled: ensembleRunning);
                     DrawButtonShowSettingsWindow();
                     DrawButtonVisualization();
-                    DrawButtonShowEnsembleWindow(disabled: !api.PartyList.IsPartyLeader());
-                    if (!api.PartyList.IsPartyLeader())
+                    DrawButtonShowEnsembleWindow(disabled: !PartyWatcher.Instance.IsPartyLeader);
+                    if (!PartyWatcher.Instance.IsPartyLeader)
                     {
                         ShowEnsembleWindow = false;
                     }

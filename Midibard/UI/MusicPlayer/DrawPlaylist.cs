@@ -24,7 +24,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.ImGuiNotification;
 
 using MidiBard.Control.MidiControl;
-using MidiBard.Managers.Ipc;
+using MidiBard.Managers;
 using MidiBard.Util;
 
 using MidiBard2.Resources;
@@ -153,8 +153,8 @@ public partial class PluginUI
 
                 bool lockMultipleDevicesOptions = MidiBard.config.playOnMultipleDevices
                                             && MidiBard.config.useChatPlaylistSync
-                                            && api.PartyList.IsInParty()
-                                            && !api.PartyList.IsPartyLeader();
+                                            && PartyWatcher.Instance.IsInParty
+                                            && !PartyWatcher.Instance.IsPartyLeader;
 
                 ImGuiListClipperPtr clipper;
                 unsafe
@@ -235,7 +235,7 @@ public partial class PluginUI
                 {
                     if (!MidiBard.AgentMetronome.EnsembleModeRunning)
                     {
-                        if (MidiBard.config.playOnMultipleDevices && api.PartyList.Length > 1)
+                        if (MidiBard.config.playOnMultipleDevices && PartyWatcher.Instance.PartyMembers.Count > 1)
                         {
                             PartyChatCommand.SendSwitchTo(i);
                         }

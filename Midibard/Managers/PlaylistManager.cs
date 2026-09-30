@@ -33,7 +33,7 @@ using Melanchall.DryWetMidi.Interaction;
 
 using MidiBard.Control.MidiControl;
 using MidiBard.IPC;
-using MidiBard.Managers.Ipc;
+using MidiBard.Managers;
 using MidiBard.Util;
 
 using Newtonsoft.Json;
@@ -115,7 +115,7 @@ static class PlaylistManager
 
     public static void RemoveSync(int songIndex)
     {
-        var pmdUseChatPlaylistSync = MidiBard.config.playOnMultipleDevices && MidiBard.config.useChatPlaylistSync && api.PartyList.Length > 1;
+        var pmdUseChatPlaylistSync = MidiBard.config.playOnMultipleDevices && MidiBard.config.useChatPlaylistSync && PartyWatcher.Instance.PartyMembers.Count > 1;
         if (pmdUseChatPlaylistSync)
         {
             PartyChatCommand.SendRemoveSong(songIndex);
@@ -177,7 +177,7 @@ static class PlaylistManager
 
     public static void MoveSongToIndexSync(int songIndex, int targetIndex)
     {
-        var pmdUseChatPlaylistSync = MidiBard.config.playOnMultipleDevices && MidiBard.config.useChatPlaylistSync && api.PartyList.Length > 1;
+        var pmdUseChatPlaylistSync = MidiBard.config.playOnMultipleDevices && MidiBard.config.useChatPlaylistSync && PartyWatcher.Instance.PartyMembers.Count > 1;
         if (pmdUseChatPlaylistSync)
         {
             PartyChatCommand.SendChangeSongOrder(songIndex, targetIndex);
@@ -515,7 +515,7 @@ static class PlaylistManager
 
     public static void SendSongToChat(int songIndex)
     {
-        if (api.PartyList.IsInParty() && !api.PartyList.IsPartyLeader()) return;
+        if (PartyWatcher.Instance.IsInParty && !PartyWatcher.Instance.IsPartyLeader) return;
         if (!IsValidSongIndex(songIndex)) return;
 
         // prevent send again after pausing song

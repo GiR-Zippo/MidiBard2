@@ -24,6 +24,7 @@ using Dalamud.Interface;
 using MidiBard.Control.CharacterControl;
 using MidiBard.Control.MidiControl;
 using MidiBard.IPC;
+using MidiBard.Managers;
 
 using MidiBard2.Resources;
 
@@ -169,11 +170,11 @@ public partial class PluginUI
 
     private static void StopEnsemble()
     {
-        if (MidiBard.config.playOnMultipleDevices && api.PartyList.Length > 1)
+        if (MidiBard.config.playOnMultipleDevices && PartyWatcher.Instance.PartyMembers.Count > 1)
         {
             PartyChatCommand.SendClose();
         }
-        else if (api.PartyList.Length <= 1)
+        else if (PartyWatcher.Instance.PartyMembers.Count <= 1)
         {
             SwitchInstrument.SwitchToContinue(0);
             MidiPlayerControl.Stop();

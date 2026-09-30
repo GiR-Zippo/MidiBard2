@@ -28,7 +28,6 @@ using Melanchall.DryWetMidi.Interaction;
 using Melanchall.DryWetMidi.Multimedia;
 
 using MidiBard.Managers;
-using MidiBard.Managers.Ipc;
 using MidiBard.Util;
 using MidiBard.Util.MidiPreprocessor;
 
@@ -66,8 +65,8 @@ internal sealed class BardPlayback : Playback
     private static MidiFileConfig ResolveMidiConfig(string filePath, TrackChunk[] trackChunks, TrackInfo[] trackInfos)
     {
         // dont use midiFileConfi or Default Performer when not in a party
-        var ignoreDefaultPerformer = api.PartyList.IsInParty() && MidiBard.config.lockTracks;
-        if (!api.PartyList.IsInParty() || ignoreDefaultPerformer)
+        var ignoreDefaultPerformer = PartyWatcher.Instance.IsInParty && MidiBard.config.lockTracks;
+        if (!PartyWatcher.Instance.IsInParty || ignoreDefaultPerformer)
         {
             PluginLog.Debug($"[LoadPlayback] using config TrackStatus");
             return null;

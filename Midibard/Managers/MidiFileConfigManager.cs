@@ -174,7 +174,7 @@ namespace MidiBard.Managers
             var trackMapping = defaultPerformer?.TrackMappingDict ?? new();
             Cids = new ulong[100];
 
-            var partyMembers = api.GetPartyListAsync().Result;
+            var partyMembers = PartyWatcher.Instance.PartyMembers;
             foreach (var member in partyMembers)
             {
                 if (member?.ContentId > 0 && trackMapping.TryGetValue(member.ContentId, out var trackIndices))
@@ -320,7 +320,7 @@ namespace MidiBard.Managers
             }
 
             // scan for those in the party but not in config anymore, remove them from Default Performer
-            var partyList = api.GetPartyListAsync().Result;
+            var partyList = PartyWatcher.Instance.PartyMembers;
             List<ulong> toRemove = new List<ulong>();
             foreach (var cur in partyList)
             {
@@ -386,7 +386,7 @@ namespace MidiBard.Managers
         {
             // main CIDs
             var mainCid = track.AssignedCids
-                .FirstOrDefault(cid => api.GetPartyListAsync().Result.Any(p => p.ContentId == cid));
+                .FirstOrDefault(cid => PartyWatcher.Instance.PartyMembers.Any(p => p.ContentId == cid));
 
             if (mainCid != 0)
             {
@@ -399,7 +399,7 @@ namespace MidiBard.Managers
                 .Where(cfg => track.AssignedCids.Contains(cfg.Cid))
                 .SelectMany(cfg => cfg.LinkedEnsembleMembers)
                 .Select(link => link.Cid)
-                .FirstOrDefault(cid => api.GetPartyListAsync().Result.Any(p => p.ContentId == cid));
+                .FirstOrDefault(cid => PartyWatcher.Instance.PartyMembers.Any(p => p.ContentId == cid));
 
             if (linkedCid != 0)
             {
