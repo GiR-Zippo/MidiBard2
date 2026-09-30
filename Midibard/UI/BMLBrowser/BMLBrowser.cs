@@ -13,7 +13,7 @@ using Dalamud.Interface;
 
 using MidiBard.Control.MidiControl;
 using MidiBard.IPC;
-using MidiBard.Managers.Ipc;
+using MidiBard.Managers;
 
 namespace MidiBard;
 
@@ -175,7 +175,7 @@ public partial class PluginUI
         }
         else
         {
-            if (api.PartyList.IsPartyLeader())
+            if (PartyWatcher.Instance.IsPartyLeader)
                 IPCHandles.SendDownloadedSong(e.MidiData.Filename, e.MidiData.data);
             _ = FilePlayback.LoadPlayback(e.MidiData.Filename, new MemoryStream(e.MidiData.data));
         }

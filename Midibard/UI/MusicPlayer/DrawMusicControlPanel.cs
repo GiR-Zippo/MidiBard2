@@ -22,7 +22,7 @@ using Dalamud.Bindings.ImGui;
 using Melanchall.DryWetMidi.Interaction;
 
 using MidiBard.Control.MidiControl;
-using MidiBard.Managers.Ipc;
+using MidiBard.Managers;
 using MidiBard.Util;
 using MidiBard.Util.Lyrics;
 
@@ -168,7 +168,7 @@ public partial class PluginUI
             MidiBard.CurrentPlayback?.MoveToTime(currenttime);
         }
 
-        if (api.PartyList.IsPartyLeader())
+        if (PartyWatcher.Instance.IsPartyLeader)
             IPC.IPCHandles.PlaybackSpeed(MidiBard.config.PlaySpeed);
     }
 

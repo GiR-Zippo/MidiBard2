@@ -10,7 +10,6 @@ using Dalamud.Utility;
 using MidiBard.Control.CharacterControl;
 using MidiBard.Control.MidiControl;
 using MidiBard.Managers;
-using MidiBard.Managers.Ipc;
 using MidiBard.Util;
 
 namespace MidiBard;
@@ -61,7 +60,7 @@ internal static class PartyChatCommand
 
     internal static void SendPlayOnMultipleDevices(bool isOn)
     {
-        if (api.PartyList.Length < 2)
+        if (PartyWatcher.Instance.PartyMembers.Count < 2)
         {
             return;
         }
@@ -86,7 +85,7 @@ internal static class PartyChatCommand
 
     internal static void SendUseChatPlaylistSync(bool isOn)
     {
-        if (!MidiBard.config.playOnMultipleDevices || api.PartyList.Length < 2)
+        if (!MidiBard.config.playOnMultipleDevices || PartyWatcher.Instance.PartyMembers.Count < 2)
         {
             return;
         }
@@ -113,7 +112,7 @@ internal static class PartyChatCommand
 
     internal static void SendSwitchTo(int songIndex)
     {
-        if (!MidiBard.config.playOnMultipleDevices || api.PartyList.Length < 2)
+        if (!MidiBard.config.playOnMultipleDevices || PartyWatcher.Instance.PartyMembers.Count < 2)
         {
             return;
         }
@@ -123,7 +122,7 @@ internal static class PartyChatCommand
 
     private static void HandleSwitchTo(string[] args)
     {
-        if (!MidiBard.config.playOnMultipleDevices || api.PartyList.Length < 2 || args.Length < 1)
+        if (!MidiBard.config.playOnMultipleDevices || PartyWatcher.Instance.PartyMembers.Count < 2 || args.Length < 1)
             return;
 
         if (int.TryParse(args[0], out int songIndex))
@@ -138,7 +137,7 @@ internal static class PartyChatCommand
 
     internal static void SendRemoveSong(int songIndex)
     {
-        if (!MidiBard.config.playOnMultipleDevices || !MidiBard.config.useChatPlaylistSync || api.PartyList.Length < 2 || !api.PartyList.IsPartyLeader())
+        if (!MidiBard.config.playOnMultipleDevices || !MidiBard.config.useChatPlaylistSync || PartyWatcher.Instance.PartyMembers.Count < 2 || !PartyWatcher.Instance.IsPartyLeader)
         {
             return;
         }
@@ -148,7 +147,7 @@ internal static class PartyChatCommand
 
     private static void HandleRemoveSong(string[] args)
     {
-        if (!MidiBard.config.playOnMultipleDevices || !MidiBard.config.useChatPlaylistSync || api.PartyList.Length < 2 || args.Length < 1)
+        if (!MidiBard.config.playOnMultipleDevices || !MidiBard.config.useChatPlaylistSync || PartyWatcher.Instance.PartyMembers.Count < 2 || args.Length < 1)
             return;
 
         if (int.TryParse(args[0], out int songIndex))
@@ -161,7 +160,7 @@ internal static class PartyChatCommand
 
     internal static void SendChangeSongOrder(int songIndex, int targetIndex)
     {
-        if (!MidiBard.config.playOnMultipleDevices || !MidiBard.config.useChatPlaylistSync || api.PartyList.Length < 2 || !api.PartyList.IsPartyLeader())
+        if (!MidiBard.config.playOnMultipleDevices || !MidiBard.config.useChatPlaylistSync || PartyWatcher.Instance.PartyMembers.Count < 2 || !PartyWatcher.Instance.IsPartyLeader)
         {
             return;
         }
@@ -171,7 +170,7 @@ internal static class PartyChatCommand
 
     private static void HandleChangeSongOrder(string[] args)
     {
-        if (!MidiBard.config.playOnMultipleDevices || !MidiBard.config.useChatPlaylistSync || api.PartyList.Length < 2 || args.Length < 2)
+        if (!MidiBard.config.playOnMultipleDevices || !MidiBard.config.useChatPlaylistSync || PartyWatcher.Instance.PartyMembers.Count < 2 || args.Length < 2)
             return;
 
         if (int.TryParse(args[0], out int fromIndex) && int.TryParse(args[1], out int toIndex))
@@ -184,7 +183,7 @@ internal static class PartyChatCommand
 
     internal static void SendChangeSpeed(float speed)
     {
-        if (!MidiBard.config.playOnMultipleDevices || !MidiBard.config.useChatPlaylistSync || api.PartyList.Length < 2 || !api.PartyList.IsPartyLeader())
+        if (!MidiBard.config.playOnMultipleDevices || !MidiBard.config.useChatPlaylistSync || PartyWatcher.Instance.PartyMembers.Count < 2 || !PartyWatcher.Instance.IsPartyLeader)
         {
             return;
         }
@@ -194,7 +193,7 @@ internal static class PartyChatCommand
 
     private static void HandleChangeSpeed(string[] args)
     {
-        if (!MidiBard.config.playOnMultipleDevices || api.PartyList.Length < 2 || args.Length < 1)
+        if (!MidiBard.config.playOnMultipleDevices || PartyWatcher.Instance.PartyMembers.Count < 2 || args.Length < 1)
             return;
 
         if (float.TryParse(args[0], out float speed))
@@ -207,7 +206,7 @@ internal static class PartyChatCommand
 
     internal static void SendSetGlobalTranspose(int transpose)
     {
-        if (!MidiBard.config.playOnMultipleDevices || !MidiBard.config.useChatPlaylistSync || api.PartyList.Length < 2 || !api.PartyList.IsPartyLeader())
+        if (!MidiBard.config.playOnMultipleDevices || !MidiBard.config.useChatPlaylistSync || PartyWatcher.Instance.PartyMembers.Count < 2 || !PartyWatcher.Instance.IsPartyLeader)
         {
             return;
         }
@@ -217,7 +216,7 @@ internal static class PartyChatCommand
 
     private static void HandleSetGlobalTranspose(string[] args)
     {
-        if (!MidiBard.config.playOnMultipleDevices || api.PartyList.Length < 2 || args.Length < 1)
+        if (!MidiBard.config.playOnMultipleDevices || PartyWatcher.Instance.PartyMembers.Count < 2 || args.Length < 1)
             return;
 
         if (int.TryParse(args[0], out int transpose))
@@ -230,7 +229,7 @@ internal static class PartyChatCommand
 
     internal static void SendClose()
     {
-        if (!MidiBard.config.playOnMultipleDevices || api.PartyList.Length < 2)
+        if (!MidiBard.config.playOnMultipleDevices || PartyWatcher.Instance.PartyMembers.Count < 2)
         {
             return;
         }
@@ -248,7 +247,7 @@ internal static class PartyChatCommand
 
     internal static void SendReloadPlaylist()
     {
-        if (api.PartyList.Length < 2)
+        if (PartyWatcher.Instance.PartyMembers.Count < 2)
         {
             return;
         }
@@ -265,7 +264,7 @@ internal static class PartyChatCommand
 
     internal static void SendUpdateDefaultPerformer()
     {
-        if (api.PartyList.Length < 2)
+        if (PartyWatcher.Instance.PartyMembers.Count < 2)
         {
             return;
         }
@@ -282,7 +281,7 @@ internal static class PartyChatCommand
 
     internal static void SendUpdateInstrument()
     {
-        if (api.PartyList.Length < 2)
+        if (PartyWatcher.Instance.PartyMembers.Count < 2)
         {
             return;
         }
@@ -307,7 +306,7 @@ internal static class PartyChatCommand
 
     internal static void SendDownloadSong(string source, string url)
     {
-        if (!api.PartyList.IsPartyLeader() || !MidiBard.config.playOnMultipleDevices || api.PartyList.Length < 2)
+        if (!PartyWatcher.Instance.IsPartyLeader || !MidiBard.config.playOnMultipleDevices || PartyWatcher.Instance.PartyMembers.Count < 2)
             return;
         Chat.SendMessage($"/p downloadsong {source} {url}");
     }

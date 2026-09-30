@@ -24,7 +24,6 @@ using Dalamud.Interface.Utility;
 
 using MidiBard.IPC;
 using MidiBard.Managers;
-using MidiBard.Managers.Ipc;
 
 using MidiBard2.Resources;
 
@@ -37,7 +36,7 @@ public partial class PluginUI
     private void DrawEnsembleWindow()
     {
         if (!ShowEnsembleWindow) return;
-        if (!api.PartyList.IsPartyLeader()) return;
+        if (!PartyWatcher.Instance.IsPartyLeader) return;
 
         // ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 2f);
         // ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(ImGui.GetStyle().ItemSpacing.X, ImGui.GetStyle().ItemSpacing.Y));
@@ -84,22 +83,23 @@ public partial class PluginUI
                     var fileConfig = MidiBard.CurrentPlayback.MidiFileConfig;
 
                     // use ensemble members config to define party selectbox order
-                    var partyList = api.PartyList.Select(partyMember => partyMember.GetPartyMemberData()).ToList();
+                    var partyList = PartyWatcher.Instance.PartyMembers.ToList();
 
                     var cidToIndexMap = MidiBard.config.EnsembleMemberConfigs
                         .Select((config, index) => new { config.Cid, Index = index })
                         .ToDictionary(item => item.Cid, item => item.Index);
 
                     var orderedPartyList = partyList
-                        .OrderBy(partyMember => cidToIndexMap.ContainsKey(partyMember.Cid)
-                                                ? cidToIndexMap[partyMember.Cid]
+                        .OrderBy(partyMember => cidToIndexMap.ContainsKey(partyMember.ContentId)
+                                                ? cidToIndexMap[partyMember.ContentId]
                                                 : int.MaxValue)
                         .ToList();
+                    //PartyMemberInfo(string Name, uint EntityId, ulong ContentId, uint WorldId, string World, uint ClassJobId, byte Level)
+                    orderedPartyList.Insert(0, new PartyWatcher.PartyMemberInfo("", 0, 0, 0, "", 0, 0));
 
-                    orderedPartyList.Insert(0, (Cid: 0, Name: "", World: ""));
 
                     var partyNamesList = orderedPartyList
-                        .Select(partyMember => partyMember.Cid != 0 ? $"{partyMember.Name}·{partyMember.World}" : "")
+                        .Select(partyMember => partyMember.ContentId != 0 ? $"{partyMember.Name}·{partyMember.World}" : "")
                         .ToArray();
 
                     if (ImGui.BeginTable("fileConfig.Tracks", 4, ImGuiTableFlags.SizingFixedFit))
@@ -135,13 +135,13 @@ public partial class PluginUI
                             ImGui.SetNextItemWidth(-1);
 
                             var firstMidiFileCid = MidiFileConfig.GetFirstCidInParty(dbTrack);
-                            var selectedIdx = firstMidiFileCid == 0 ? 0 : orderedPartyList.FindIndex(i => i.Cid != 0 && i.Cid == firstMidiFileCid);
+                            var selectedIdx = firstMidiFileCid == 0 ? 0 : orderedPartyList.FindIndex(i => i.ContentId != 0 && i.ContentId == firstMidiFileCid);
 
                             if (ImGui.Combo("##partymemberSelect", ref selectedIdx, partyNamesList, partyNamesList.Length))
                             {
                                 if (selectedIdx >= 1)
                                 {
-                                    var currentCid = orderedPartyList[selectedIdx].Cid;
+                                    var currentCid = orderedPartyList[selectedIdx].ContentId;
                                     if (firstMidiFileCid > 0 && currentCid != firstMidiFileCid)
                                     {
                                         // character changed, delete the old one
@@ -162,7 +162,7 @@ public partial class PluginUI
                                 else
                                 {
                                     // choose empty, remove all the characters in the same party
-                                    foreach (var member in api.PartyList)
+                                    foreach (var member in PartyWatcher.Instance.PartyMembers)
                                     {
                                         if (dbTrack.AssignedCids.Contains(member.ContentId))
                                         {
@@ -177,7 +177,7 @@ public partial class PluginUI
                             if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
                             {
                                 // choose empty, remove all the characters in the same party
-                                foreach (var member in api.PartyList)
+                                foreach (var member in PartyWatcher.Instance.PartyMembers)
                                 {
                                     if (dbTrack.AssignedCids.Contains(member.ContentId))
                                     {

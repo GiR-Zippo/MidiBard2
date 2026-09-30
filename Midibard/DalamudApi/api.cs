@@ -150,29 +150,6 @@ public class api
         throw new InvalidOperationException();
     }
 
-    /// <summary>
-    /// The PartyMemberInfo, expand it when needed
-    /// </summary>
-    public record PartyMemberInfo(string Name, uint EntityId, ulong ContentId, uint WorldId, uint ClassJobId, byte Level);
-    /// <summary>
-    /// GetPartyListAsync when we are not in mainThread
-    /// api.GetPartyListAsync().Result;
-    /// </summary>
-    /// <returns></returns>
-    public static Task<List<PartyMemberInfo>> GetPartyListAsync()
-    {
-        return api.Framework.RunOnFrameworkThread(() =>
-            api.PartyList
-                .Select(m => new PartyMemberInfo(
-                    m.Name.TextValue,
-                    m.EntityId,
-                    m.ContentId,
-                    m.World.RowId,
-                    m.ClassJob.RowId,
-                    m.Level))
-                .ToList());
-    }
-
     public static void PrintEcho(string message) => ChatGui.Print($"{printHeader}{message}");
 
     public static void PrintError(string message) => ChatGui.PrintError($"{printHeader}{message}");

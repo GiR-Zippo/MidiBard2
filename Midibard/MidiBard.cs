@@ -78,8 +78,6 @@ public partial class MidiBard : IDalamudPlugin
     internal static string[] InstrumentStrings;
     internal static readonly byte[] guitarGroup = { 24, 25, 26, 27, 28 };
     internal static IDictionary<SevenBitNumber, uint> ProgramInstruments;
-    internal static PartyWatcher PartyWatcher;
-
     internal static bool SlaveMode = false;
     internal static int CurrentInstrumentWithTone => CurrentInstrument >= 24 ? 24 + CurrentTone : CurrentInstrument;
     internal static unsafe byte CurrentInstrument => *(byte*)(Offsets.PerformanceStructPtr + 3 + Offsets.InstrumentOffset);
@@ -118,7 +116,7 @@ public partial class MidiBard : IDalamudPlugin
 
         // WindowSystem = new WindowSystem(this.Name);
         IpcManager = IPCManagerFactory.Create();
-        PartyWatcher = new PartyWatcher();
+        PartyWatcher.Instance.Start();
         PluginIpc = new PluginIPC();
 
         //playlib.init();
@@ -291,7 +289,7 @@ public partial class MidiBard : IDalamudPlugin
 
             PluginIpc?.Dispose();
             EnsembleManager?.Dispose();
-            PartyWatcher?.Dispose();
+            PartyWatcher.Instance.Dispose();
             IpcManager?.Dispose();
             // this.WindowSystem.RemoveAllWindows();
             // NetworkManager.Instance.Dispose();

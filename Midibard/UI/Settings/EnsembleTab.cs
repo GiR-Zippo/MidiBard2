@@ -11,7 +11,6 @@ using Dalamud.Interface.Utility;
 
 using MidiBard.IPC;
 using MidiBard.Managers;
-using MidiBard.Managers.Ipc;
 using MidiBard.Util;
 using MidiBard.Util.Lyrics;
 
@@ -253,9 +252,8 @@ public partial class PluginUI
 
             try
             {
-                var partyMembers = api.PartyList
-                    .Select(partyMember => partyMember.GetPartyMemberData())
-                    .Where(partyMember => MidiFileConfigManager.defaultPerformer.TrackMappingDict.ContainsKey(partyMember.Cid))
+                var partyMembers = PartyWatcher.Instance.PartyMembers
+                    .Where(partyMember => MidiFileConfigManager.defaultPerformer.TrackMappingDict.ContainsKey(partyMember.ContentId))
                     .ToList();
 
                 if (partyMembers.Count == 0)
@@ -268,7 +266,7 @@ public partial class PluginUI
                 foreach (var partyMember in partyMembers)
                 {
                     var playerInfo = $"{partyMember.Name}@{partyMember.World}";
-                    var playerTrackList = MidiFileConfigManager.defaultPerformer.TrackMappingDict.GetValueOrDefault(partyMember.Cid).ToList();
+                    var playerTrackList = MidiFileConfigManager.defaultPerformer.TrackMappingDict.GetValueOrDefault(partyMember.ContentId).ToList();
                     var playerTracks = string.Join(", ", playerTrackList.Select(n => n + 1));
                     ImGui.TextUnformatted($"{playerInfo}");
                     ImGui.Indent();
@@ -401,7 +399,7 @@ public partial class PluginUI
         {
             ImGui.Indent();
 
-            var partyMembers = api.PartyList.Select((partyMember) => partyMember.GetPartyMemberData()).ToList();
+            var partyMembers = PartyWatcher.Instance.PartyMembers.ToList();
             ImGui.TextUnformatted(Language.display_order);
             ImGuiUtil.HelpMarker("""
             The order used to show bards in the ensemble panel (Drag to reorder)
@@ -540,7 +538,7 @@ public partial class PluginUI
             ImGui.Spacing();
             ImGui.Spacing();
 
-            bool allPartyMembersInConfig = partyMembers.All(partyMember => ContainsCidDeep(MidiBard.config.EnsembleMemberConfigs, partyMember.Cid));
+            bool allPartyMembersInConfig = partyMembers.All(partyMember => ContainsCidDeep(MidiBard.config.EnsembleMemberConfigs, partyMember.ContentId));
 
             ImGui.BeginDisabled(allPartyMembersInConfig);
             ImGui.TextUnformatted(Language.available_party_members);
@@ -548,15 +546,15 @@ public partial class PluginUI
             {
                 foreach (var partyMember in partyMembers)
                 {
-                    bool isCidUsed = ContainsCidDeep(MidiBard.config.EnsembleMemberConfigs, partyMember.Cid);
+                    bool isCidUsed = ContainsCidDeep(MidiBard.config.EnsembleMemberConfigs, partyMember.ContentId);
                     if (!isCidUsed)
                     {
                         var playerInfo = $"{partyMember.Name}@{partyMember.World}";
-                        if (ImGui.Selectable($"{playerInfo}##{partyMember.Cid}", false))
+                        if (ImGui.Selectable($"{playerInfo}##{partyMember.ContentId}", false))
                         {
                             var newMember = new EnsembleMemberConfig
                             {
-                                Cid = partyMember.Cid,
+                                Cid = partyMember.ContentId,
                                 Name = playerInfo,
                                 TrackAssignmentRegex = "",
                                 LinkedEnsembleMembers = new()

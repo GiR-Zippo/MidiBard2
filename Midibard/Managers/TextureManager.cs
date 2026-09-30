@@ -19,7 +19,7 @@ using Dalamud.Interface.Textures;
 
 namespace MidiBard.Managers
 {
-    internal class TextureManager
+    public static class TextureManager
     {
         public static ISharedImmediateTexture Get(uint id) => api.TextureProvider.GetFromGameIcon(id);
     }

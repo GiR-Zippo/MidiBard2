@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 using Dalamud.Plugin.Services;
 
 using MidiBard.Control.MidiControl;
-using MidiBard.Managers.Ipc;
+using MidiBard.Managers;
 
 using static Dalamud.api;
 
@@ -230,7 +230,7 @@ public class Lrc
 
     public static bool LrcLoaded()
     {
-        return api.PartyList.IsInParty() && Lrc.PlayingLrc != null && Lrc.PlayingLrc.LrcLines.Count > 0;
+        return PartyWatcher.Instance.IsInParty && Lrc.PlayingLrc != null && Lrc.PlayingLrc.LrcLines.Count > 0;
     }
 
     public static void Play()
@@ -239,7 +239,7 @@ public class Lrc
 
         if (HasLyric())
         {
-            if (!api.PartyList.IsInParty())
+            if (!PartyWatcher.Instance.IsInParty)
             {
                 api.ChatGui.Print(string.Format("[MidiBard 2] Not in a party, Lyrics will not be posted."));
             }
@@ -300,7 +300,7 @@ public class Lrc
             var playingLrc = PlayingLrc;
 
             // post song info at the beginning
-            if (!SongTitlePosted && api.PartyList.IsPartyLeader())
+            if (!SongTitlePosted && PartyWatcher.Instance.IsPartyLeader)
             {
                 var msg = $"♪ {playingLrc.Title} ♪ ";
                 msg += !string.IsNullOrWhiteSpace(playingLrc.Artist) ? $"Artist: {playingLrc.Artist} ♪ " : "";
@@ -334,7 +334,7 @@ public class Lrc
                 }
                 else
                 {
-                    if (api.PartyList.IsPartyLeader())
+                    if (PartyWatcher.Instance.IsPartyLeader)
                     {
                         shouldPostLyric = true;
                     }

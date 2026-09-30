@@ -27,7 +27,6 @@ using MidiBard.Control.CharacterControl;
 using MidiBard.Control.MidiControl;
 using MidiBard.Control.MidiControl.PlaybackInstance;
 using MidiBard.Managers;
-using MidiBard.Managers.Ipc;
 using MidiBard.Util;
 using MidiBard.Util.Lyrics;
 
@@ -186,7 +185,7 @@ static class IPCHandles
 
     public static void LoadPlayback(int index, bool includeSelf = false)
     {
-        if (!api.PartyList.IsPartyLeader() || MidiBard.config.playOnMultipleDevices) return;
+        if (!PartyWatcher.Instance.IsPartyLeader || MidiBard.config.playOnMultipleDevices) return;
         IPCEnvelope.Create(MessageTypeCode.LoadPlaybackIndex, index).BroadCast();
     }
 
@@ -201,7 +200,7 @@ static class IPCHandles
 
     public static void UpdateInstrument(bool takeout)
     {
-        if (!api.PartyList.IsPartyLeader() || MidiBard.config.playOnMultipleDevices) return;
+        if (!PartyWatcher.Instance.IsPartyLeader || MidiBard.config.playOnMultipleDevices) return;
         IPCEnvelope.Create(MessageTypeCode.SetInstrument, takeout).BroadCast(true);
     }
 
@@ -310,7 +309,7 @@ static class IPCHandles
 
     public static void PlaybackSpeed(float playbackSpeed)
     {
-        if (!api.PartyList.IsPartyLeader()) return;
+        if (!PartyWatcher.Instance.IsPartyLeader) return;
         IPCEnvelope.Create(MessageTypeCode.PlaybackSpeed, playbackSpeed).BroadCast();
     }
 
@@ -380,7 +379,7 @@ static class IPCHandles
 
     public static void SendDownloadedSong(string filename, byte[] mididata)
     {
-        if (!api.PartyList.IsPartyLeader() || MidiBard.config.playOnMultipleDevices) return;
+        if (!PartyWatcher.Instance.IsPartyLeader || MidiBard.config.playOnMultipleDevices) return;
         IPCEnvelope.Create(MessageTypeCode.SendDownloadedSong, mididata).BroadCast();
     }
 
