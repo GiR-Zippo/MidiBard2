@@ -386,7 +386,7 @@ namespace MidiBard.Managers
         {
             // main CIDs
             var mainCid = track.AssignedCids
-                .FirstOrDefault(cid =>api.GetPartyListAsync().Result.Any(p => p.ContentId == cid));
+                .FirstOrDefault(cid => api.GetPartyListAsync().Result.Any(p => p.ContentId == cid));
 
             if (mainCid != 0)
             {
