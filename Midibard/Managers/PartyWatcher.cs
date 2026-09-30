@@ -33,10 +33,14 @@ public class PartyWatcher : IDisposable
 
     public ulong[] PartyMemberCIDs { get; private set; } = Array.Empty<ulong>();
 
+    /// <summary>
+    /// Get the party member CIDs, called by Framework_Update
+    /// </summary>
+    /// <returns></returns>
     public static ulong[] GetMemberCIDs()
     {
         System.Collections.Generic.List<ulong> cids = new();
-        foreach (var p in api.GetPartyList())
+        foreach (var p in api.PartyList)
         {
             try
             {

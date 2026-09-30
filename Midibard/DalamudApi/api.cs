@@ -4,17 +4,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 
-using Dalamud.Game;
-using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui.Toast;
 using Dalamud.Interface.ImGuiNotification;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-
-using FFXIVClientStructs.FFXIV.Client.Game.Group;
 
 namespace Dalamud;
 
@@ -153,14 +150,27 @@ public class api
         throw new InvalidOperationException();
     }
 
-    public static List<Game.ClientState.Party.IPartyMember> GetPartyList()
+    /// <summary>
+    /// The PartyMemberInfo, expand it when needed
+    /// </summary>
+    public record PartyMemberInfo(string Name, uint EntityId, ulong ContentId, uint WorldId, uint ClassJobId, byte Level);
+    /// <summary>
+    /// GetPartyListAsync when we are not in mainThread
+    /// api.GetPartyListAsync().Result;
+    /// </summary>
+    /// <returns></returns>
+    public static Task<List<PartyMemberInfo>> GetPartyListAsync()
     {
-        List<Game.ClientState.Party.IPartyMember> members = new List<Game.ClientState.Party.IPartyMember>();
-        api.Framework?.RunOnTick(() =>
-        {
-            members = api.PartyList.ToList();
-        });
-        return members;
+        return api.Framework.RunOnFrameworkThread(() =>
+            api.PartyList
+                .Select(m => new PartyMemberInfo(
+                    m.Name.TextValue,
+                    m.EntityId,
+                    m.ContentId,
+                    m.World.RowId,
+                    m.ClassJob.RowId,
+                    m.Level))
+                .ToList());
     }
 
     public static void PrintEcho(string message) => ChatGui.Print($"{printHeader}{message}");
