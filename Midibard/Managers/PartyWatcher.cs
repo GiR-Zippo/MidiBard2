@@ -99,7 +99,7 @@ public class PartyWatcher : IDisposable
 
         var joined = newCIDs.Except(oldCIDs).ToArray();
         var left = oldCIDs.Except(newCIDs).ToArray();
-        bool isInParty = api.PartyList?.Length > 1;
+        bool isInParty = (api.PartyList?.Length ?? 0) > 1;
         var lead = isInParty ? api.PartyList[(int)api.PartyList.PartyLeaderIndex] : null;
 
         Volatile.Write(ref _isInParty, isInParty);
