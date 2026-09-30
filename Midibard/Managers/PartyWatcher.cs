@@ -36,7 +36,7 @@ public class PartyWatcher : IDisposable
     public static ulong[] GetMemberCIDs()
     {
         System.Collections.Generic.List<ulong> cids = new();
-        foreach (var p in api.PartyList)
+        foreach (var p in api.GetPartyList())
         {
             try
             {
